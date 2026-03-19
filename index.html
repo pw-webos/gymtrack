@@ -345,11 +345,16 @@ function beep(freq, dur, type, vol) {
 }
 function soundStart() { beep(660, 0.12, "sine", 0.3); setTimeout(function(){ beep(880, 0.18, "sine", 0.3); }, 120); }
 function soundEnd()   { beep(520, 0.15, "sine", 0.4); setTimeout(function(){ beep(392, 0.4,  "sine", 0.35); }, 150); }
-// unlock audio on first tap anywhere — required for iOS Safari
-document.addEventListener("touchstart", function unlock() {
+// unlock AudioContext on first user gesture — covers both iOS and Chrome desktop
+function unlockAudio() {
   getACtx();
-  document.removeEventListener("touchstart", unlock);
-}, {once: true});
+  document.removeEventListener("touchstart", unlockAudio);
+  document.removeEventListener("mousedown", unlockAudio);
+  document.removeEventListener("keydown", unlockAudio);
+}
+document.addEventListener("touchstart", unlockAudio, {once:true});
+document.addEventListener("mousedown",  unlockAudio, {once:true});
+document.addEventListener("keydown",    unlockAudio, {once:true});
 
 function save() { try { localStorage.setItem("gt6", JSON.stringify(ST)); } catch(e) {} }
 
