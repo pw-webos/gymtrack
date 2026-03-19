@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>GymTrack</title>
+<title>GymTrack v2.1</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0614;--surf:#120c26;--surf2:#1a1035;--b1:#2d1b69;--b2:#3b0764;--acc:#a855f7;--acc2:#7c3aed;--acc3:#6d28d9;--t1:#e9d5ff;--t2:#c4b5fd;--t3:#7c3aed;--t4:#4c1d95;--green:#22c55e;--red:#ef4444;--gold:#f59e0b}
@@ -113,7 +113,10 @@ button{cursor:pointer;font-family:inherit}
 <div class="pg on" id="ptoday">
   <div class="hdr">
     <div><h1>GymTrack</h1><div class="sub" id="dateLabel"></div></div>
-    <div id="streakEl" style="background:var(--surf2);border:1px solid var(--b2);border-radius:10px;padding:6px 12px;font-size:13px;color:var(--gold)"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div id="streakEl" style="background:var(--surf2);border:1px solid var(--b2);border-radius:10px;padding:6px 12px;font-size:13px;color:var(--gold)"></div>
+      <div style="font-size:9px;color:var(--t4)">v2.1</div>
+    </div>
   </div>
   <div class="dstrip" id="dstrip"></div>
   <div id="wcontent"></div>
@@ -366,6 +369,8 @@ function renderWorkout() {
   var sess=getOrCreate(curDay);
   var tot=0,dn=0;
   sess.exercises.forEach(function(e){tot+=e.sets.length;e.sets.forEach(function(s){if(s.done)dn++;});});
+  // at least one set per exercise checked done = unlocks finish
+  var anyDone=sess.exercises.some(function(e){return e.sets.some(function(s){return s.done&&s.w&&s.r;});});
   var pc=tot?Math.round(dn/tot*100):0;
   var bc=BC[p.type]||"";
   var h="";
@@ -433,8 +438,8 @@ function renderWorkout() {
   });
 
   h+='</div>';
-  h+='<button class="fbtn" id="fbtn" onclick="finish()" '+(pc===100?"":"disabled")+'>'
-    +(pc===100?"🎉 Finish and sync to Sheets":"Complete all sets to finish ("+pc+"%)")
+  h+='<button class="fbtn" id="fbtn" onclick="finish()" '+(anyDone?"":"disabled")+'>'
+    +(anyDone?"Finish and sync to Sheets":"Log at least one set to finish")
     +'</button>';
 
   el.innerHTML=h;
@@ -453,7 +458,6 @@ window.tog=function(ei,si){
   var s=getOrCreate(curDay);
   s.exercises[ei].sets[si].done=!s.exercises[ei].sets[si].done;
   save(); renderWorkout();
-  if (s.exercises[ei].sets[si].done) setTimeout(function(){autoTimer(ei);},80);
 };
 
 window.addSet=function(ei){
@@ -602,11 +606,39 @@ document.getElementById("mmodal").addEventListener("click",function(e){if(e.targ
 
 window.finish=function(){
   var sess=getOrCreate(curDay);
+  if (sess.finished) return;
   sess.finished=true; sess.finishedAt=new Date().toISOString();
-  save(); toast("Workout saved!");
+  // drop uncompleted sets before saving
+  sess.exercises.forEach(function(e){
+    e.sets=e.sets.filter(function(s){return s.done&&s.w&&s.r;});
+  });
+  sess.exercises=sess.exercises.filter(function(e){return e.sets.length>0;});
+  save();
   if (ST.sheetsUrl) syncSheets(sess);
-  renderAll();
+  showFinishScreen(sess);
 };
+
+function showFinishScreen(sess){
+  var vol=0,sets=0;
+  sess.exercises.forEach(function(e){
+    e.sets.forEach(function(s){
+      vol+=(parseFloat(s.w)||0)*(parseInt(s.r)||0);
+      sets++;
+    });
+  });
+  var vlbl=vol>=1000?(vol/1000).toFixed(1)+"t":Math.round(vol)+"kg";
+  var el=document.getElementById("wcontent");
+  el.innerHTML='<div class="card" style="text-align:center;padding:48px 24px">'
+    +'<div style="font-size:52px;margin-bottom:16px">🎉</div>'
+    +'<div style="font-size:20px;font-weight:700;margin-bottom:8px">Session complete</div>'
+    +'<div style="font-size:13px;color:var(--t3);margin-bottom:24px">'+curDay+' workout saved</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px">'
+    +'<div class="scrd"><div class="slbl">Volume</div><div class="sval">'+vlbl+'</div></div>'
+    +'<div class="scrd"><div class="slbl">Sets done</div><div class="sval">'+sets+'</div></div>'
+    +'</div>'
+    +(ST.sheetsUrl?'<div style="font-size:12px;color:var(--green);margin-bottom:20px">Syncing to Google Sheets...</div>':'')
+    +'</div>';
+}
 
 function syncSheets(sess){
   var rows=[],dt=dateStr();
@@ -617,7 +649,14 @@ function syncSheets(sess){
     });
   });
   fetch(ST.sheetsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:rows})})
-    .then(function(){toast("Synced to Google Sheets!");})
+    .then(function(){
+      toast("Synced to Google Sheets!");
+      var el=document.getElementById("wcontent");
+      if (el) {
+        var note=el.querySelector("[data-sync]");
+        if (note) note.textContent="Synced to Google Sheets";
+      }
+    })
     .catch(function(){toast("Sync failed — saved locally");});
 }
 
