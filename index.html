@@ -258,7 +258,11 @@ var sessionStarted = {};
 // Web Audio for timer sounds
 var AudioCtx = window.AudioContext || window.webkitAudioContext;
 var actx = null;
-function getACtx() { if (!actx) { try { actx = new AudioCtx(); } catch(e) {} } return actx; }
+function getACtx() {
+  if (!actx) { try { actx = new AudioCtx(); } catch(e) {} }
+  if (actx && actx.state === "suspended") { try { actx.resume(); } catch(e) {} }
+  return actx;
+}
 function beep(freq, dur, type, vol) {
   var ctx = getACtx(); if (!ctx) return;
   try {
@@ -274,7 +278,12 @@ function beep(freq, dur, type, vol) {
   } catch(e) {}
 }
 function soundStart() { beep(660, 0.12, "sine", 0.3); setTimeout(function(){ beep(880, 0.18, "sine", 0.3); }, 120); }
-function soundEnd()   { beep(520, 0.15, "sine", 0.4); setTimeout(function(){ beep(392, 0.4, "sine", 0.35); }, 150); }
+function soundEnd()   { beep(520, 0.15, "sine", 0.4); setTimeout(function(){ beep(392, 0.4,  "sine", 0.35); }, 150); }
+// unlock audio on first tap anywhere — required for iOS Safari
+document.addEventListener("touchstart", function unlock() {
+  getACtx();
+  document.removeEventListener("touchstart", unlock);
+}, {once: true});
 
 function save() { try { localStorage.setItem("gt6", JSON.stringify(ST)); } catch(e) {} }
 
@@ -615,13 +624,15 @@ function svgB(ms,sz){
 window.openMuscle=function(ei){
   var p=progFor(curDay); if (!p) return;
   var def=p.ex[ei]; if (!def) return;
-  var vid=VIDEOS[def.n]; if (!vid) return;
-  document.getElementById("mtitle").textContent=def.n;
+  var name=def.n;
+  var vid=VIDEOS[name];
+  if (!vid) { toast("Video not available for this exercise"); return; }
+  document.getElementById("mtitle").textContent=name;
   var th="";
   def.m.forEach(function(m){th+='<span style="font-size:11px;background:#2d1b69;color:#c4b5fd;border-radius:6px;padding:3px 8px">'+m+'</span> ';});
   document.getElementById("mtags").innerHTML=th;
   document.getElementById("mframe").src="https://www.youtube.com/embed/"+vid+"?autoplay=1&rel=0&modestbranding=1";
-  var tip=TIPS[def.n]||"";
+  var tip=TIPS[name]||"";
   document.getElementById("mtip").innerHTML='<b style="color:var(--t2)">Coach tip:</b> '+tip;
   document.getElementById("mmodal").classList.add("on");
 };
