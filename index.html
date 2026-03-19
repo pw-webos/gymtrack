@@ -507,10 +507,7 @@ window.togTimer=function(ei){
   }
 };
 
-function autoTimer(ei){
-  if (!timers[ei]) timers[ei]={left:90,total:90,running:false,iv:null};
-  if (!timers[ei].running){timers[ei].left=timers[ei].total;window.togTimer(ei);}
-}
+function autoTimer(ei){ /* disabled — timer is manual only */ }
 
 function setIcon(ei,playing){
   var ic=document.getElementById("ti"+ei); if (!ic) return;
