@@ -1067,7 +1067,7 @@ function renderSchedGrid(){
   DAYS.forEach(function(day){
     var t=tempSched[day]||"rest";
     var col=typeColors[t]||"";
-    h+='<div class="sched-day '+(t!=="rest"?"on":"")+'" onclick="cycleSched(\''+day+\')">'
+    h+='<div class="sched-day '+(t!=="rest"?"on":"")+'" onclick="cycleSched(\''+day+'\')">'
       +'<div class="sched-day-name">'+day.slice(0,3)+'</div>'
       +'<span class="sched-type" style="'+col+'">'+t.slice(0,3).toUpperCase()+'</span>'
       +'</div>';
