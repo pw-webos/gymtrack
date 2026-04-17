@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>GymTrack v4.0</title>
+<title>GymTrack v9.0</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -120,6 +120,42 @@ button{cursor:pointer;font-family:inherit}
 .chat-send{width:42px;height:42px;border-radius:10px;background:var(--acc);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .swap-result{background:var(--surf2);border-radius:12px;padding:14px;margin-top:12px}
 .api-warning{background:#1f1010;border:1px solid #7f1d1d;border-radius:10px;padding:12px;font-size:12px;color:#fca5a5;margin:0 16px 12px;line-height:1.6}
+/* v9 Progress page */
+.wkcmp{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 16px}
+.wkcrd{background:var(--surf);border:1px solid var(--b2);border-radius:14px;padding:12px}
+.wkcrd .wklbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.wkcrd .wkval{font-size:20px;font-weight:700;color:var(--t1);line-height:1.2}
+.wkcrd .wkdelta{font-size:11px;margin-top:4px;font-weight:600}
+.wkdelta.up{color:var(--green)}
+.wkdelta.dn{color:var(--red)}
+.wkdelta.flat{color:var(--t3)}
+.mgrow{display:flex;align-items:center;gap:10px;padding:6px 16px}
+.mglbl{font-size:12px;color:var(--t2);width:80px;flex-shrink:0}
+.mgtrack{flex:1;height:18px;background:var(--surf2);border-radius:4px;overflow:hidden;position:relative}
+.mgfill{height:100%;border-radius:4px;transition:width .3s}
+.mgfill.low{background:var(--red)}
+.mgfill.mid{background:var(--gold)}
+.mgfill.high{background:var(--green)}
+.mgval{font-size:11px;color:var(--t2);width:44px;text-align:right;flex-shrink:0}
+.liftcard{background:var(--surf);border:1px solid var(--b2);border-radius:14px;margin:0 16px 10px;overflow:hidden;cursor:pointer}
+.liftcard.open{border-color:var(--acc2)}
+.liftrow{padding:12px 14px;display:flex;align-items:center;gap:12px}
+.liftnm{flex:1;min-width:0}
+.liftnm .n{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.liftnm .s{font-size:11px;color:var(--t3);margin-top:2px}
+.liftval{text-align:right;flex-shrink:0}
+.liftval .v{font-size:16px;font-weight:700;color:var(--t1)}
+.liftval .d{font-size:10px;font-weight:600;margin-top:2px}
+.liftchart{padding:0 14px 14px;border-top:1px solid var(--b1)}
+.vbar-chart{padding:0 16px 16px}
+.vbar-row{display:flex;align-items:flex-end;height:120px;gap:6px;padding-top:10px}
+.vbar-col{flex:1;display:flex;flex-direction:column-reverse;border-radius:3px 3px 0 0;overflow:hidden;min-height:2px}
+.vbar-seg{width:100%}
+.vbar-labels{display:flex;gap:6px;margin-top:6px}
+.vbar-lbl{flex:1;font-size:9px;color:var(--t3);text-align:center}
+.vbar-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:var(--t3);padding-top:10px;border-top:1px solid var(--b1);margin-top:8px}
+.vbar-legend-item{display:flex;align-items:center;gap:4px}
+.vbar-swatch{width:10px;height:10px;border-radius:2px}
 </style>
 </head>
 <body>
@@ -224,7 +260,7 @@ button{cursor:pointer;font-family:inherit}
     <div><h1>GymTrack</h1><div class="sub" id="dateLabel"></div></div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
       <div id="streakEl" style="background:var(--surf2);border:1px solid var(--b2);border-radius:10px;padding:6px 12px;font-size:13px;color:var(--gold)"></div>
-      <div style="font-size:9px;color:var(--t4)">v4.0</div>
+      <div style="font-size:9px;color:var(--t4)">v9.0</div>
     </div>
   </div>
   <div class="dstrip" id="dstrip"></div>
@@ -232,12 +268,14 @@ button{cursor:pointer;font-family:inherit}
 </div>
 
 <div class="pg" id="pprogress">
-  <div class="hdr"><div><h1>Progress</h1><div class="sub">Stats and history</div></div></div>
-  <div class="sgrd" id="statsGrid"></div>
-  <div class="stitle">Volume by muscle</div>
-  <div class="bchart" id="volChart"></div>
-  <div class="stitle">Recent sessions</div>
-  <div id="histList"></div>
+  <div class="hdr"><div><h1>Progress</h1><div class="sub">This week vs last</div></div></div>
+  <div id="weekCompare"></div>
+  <div class="stitle">Muscle group balance · last 28 days</div>
+  <div id="muscleBal"></div>
+  <div class="stitle" style="margin-top:16px">Strength progression</div>
+  <div id="liftCards"></div>
+  <div class="stitle" style="margin-top:16px">Volume · last 12 weeks</div>
+  <div id="volTrend"></div>
 </div>
 
 <div class="pg" id="pai">
@@ -416,19 +454,59 @@ function getApiUrl(){return ST.apiUrl||"";}
 function callClaude(system,userPrompt,callback){
   var url=getApiUrl();
   if(!url){callback(null,"API URL not configured. Go to Settings to add your Netlify proxy URL.");return;}
-  fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:system,message:userPrompt})})
-    .then(function(r){return r.json();})
-    .then(function(d){if(d.error)callback(null,d.error);else callback(d.content||d.text||"",null);})
-    .catch(function(e){callback(null,"Connection failed: "+e.message);});
+  fetchWithRetry(url,{system:system,message:userPrompt},callback);
 }
 
 function callClaudeChat(system,messages,callback){
   var url=getApiUrl();
   if(!url){callback(null,"API URL not configured. Go to Settings.");return;}
-  fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:system,messages:messages})})
-    .then(function(r){return r.json();})
+  fetchWithRetry(url,{system:system,messages:messages},callback);
+}
+
+// v9: One silent auto-retry with 30s timeout. User just waits slightly longer on transient failures.
+function fetchWithRetry(url,body,callback){
+  _doFetch(url,body,function(res,err){
+    if(err){
+      // Retry once on network/timeout failures
+      setTimeout(function(){
+        _doFetch(url,body,function(res2,err2){
+          if(err2)callback(null,err2);
+          else callback(res2,null);
+        });
+      },600);
+    }else{
+      callback(res,null);
+    }
+  });
+}
+
+function _doFetch(url,body,callback){
+  var controller=new AbortController();
+  var timeoutId=setTimeout(function(){controller.abort();},30000);
+  fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal})
+    .then(function(r){clearTimeout(timeoutId);return r.json();})
     .then(function(d){if(d.error)callback(null,d.error);else callback(d.content||d.text||"",null);})
-    .catch(function(e){callback(null,"Connection failed: "+e.message);});
+    .catch(function(e){
+      clearTimeout(timeoutId);
+      if(e.name==="AbortError")callback(null,"Timed out");
+      else callback(null,"Connection failed: "+e.message);
+    });
+}
+
+// v9: Robust JSON extraction. Strips code fences, finds first { and last }, parses that slice.
+// Returns null on any failure instead of throwing, so callers can show a clean retry UI.
+function extractJSON(text){
+  if(!text)return null;
+  // Strip markdown code fences
+  var cleaned=text.replace(/```json|```/g,"").trim();
+  // Fast path: try parsing as-is
+  try{return JSON.parse(cleaned);}catch(e){}
+  // Bracket-match fallback: find first { and last }
+  var first=cleaned.indexOf("{");
+  var last=cleaned.lastIndexOf("}");
+  if(first<0||last<0||last<=first)return null;
+  var slice=cleaned.substring(first,last+1);
+  try{return JSON.parse(slice);}catch(e){return null;}
 }
 
 function buildWeekContext(){
@@ -494,21 +572,20 @@ window.generateReport=function(){
   var weekData=buildWeekContext();
   var progData=buildProgressContext();
   if(!weekData.length){document.getElementById("reportBody").innerHTML='<div style="color:var(--t3);font-size:13px">No sessions logged this week yet.</div>';return;}
-  var system="You are an elite strength and conditioning coach. Analyse workout data and provide concise actionable coaching insights. Respond in JSON with keys: summary (2-3 sentences), highlights (array of 2-3 strings), concerns (array of 1-2 strings), recommendations (array of 3 actionable strings for next week), focus_lift (single string). Pure JSON only, no markdown.";
+  var system='You are an elite strength and conditioning coach. Analyse workout data and provide concise actionable coaching insights.\n\nReturn ONLY a JSON object matching this exact skeleton, with no prose before or after. Start your response with {.\n\n{"summary":"2-3 sentence overview","highlights":["string","string"],"concerns":["string"],"recommendations":["actionable string","actionable string","actionable string"],"focus_lift":"single lift name"}';
   var prompt="Analyse this athletes training week.\n\nSessions: "+JSON.stringify(weekData)+"\n\nLift history: "+JSON.stringify(progData);
   callClaude(system,prompt,function(res,err){
-    if(err){document.getElementById("reportBody").innerHTML='<div style="color:var(--red);font-size:13px">Error: '+err+'</div>';return;}
-    try{
-      var d=JSON.parse(res.replace(/```json|```/g,"").trim());
-      var h="";
-      if(d.summary)h+='<div class="ai-section"><div class="ai-section-title">Summary</div><div class="ai-text">'+d.summary+'</div></div>';
-      if(d.highlights&&d.highlights.length){h+='<div class="ai-section"><div class="ai-section-title">What went well</div>';d.highlights.forEach(function(x){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--green)">+</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
-      if(d.concerns&&d.concerns.length){h+='<div class="ai-section"><div class="ai-section-title">Watch out for</div>';d.concerns.forEach(function(x){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--gold)">!</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
-      if(d.recommendations&&d.recommendations.length){h+='<div class="ai-section"><div class="ai-section-title">This weeks focus</div>';d.recommendations.forEach(function(x,i){h+='<div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--acc);font-weight:700;min-width:16px">'+(i+1)+'.</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
-      if(d.focus_lift)h+='<div class="ai-section"><div class="ai-section-title">Priority lift</div><span class="ai-chip" style="background:var(--acc2);color:#fff;border-color:var(--acc)">'+d.focus_lift+'</span></div>';
-      h+='<button class="btns" style="margin-top:8px" onclick="generateReport()">Regenerate</button>';
-      document.getElementById("reportBody").innerHTML=h;
-    }catch(e){document.getElementById("reportBody").innerHTML='<div class="ai-text">'+res+'</div><button class="btns" style="margin-top:8px" onclick="generateReport()">Regenerate</button>';}
+    if(err){document.getElementById("reportBody").innerHTML='<div style="color:var(--red);font-size:13px;margin-bottom:10px">Could not reach AI coach: '+err+'</div><button class="btns" onclick="generateReport()">Try again</button>';return;}
+    var d=extractJSON(res);
+    if(!d){document.getElementById("reportBody").innerHTML='<div style="color:var(--gold);font-size:13px;margin-bottom:10px">AI response was malformed. This is usually transient.</div><button class="btns" onclick="generateReport()">Regenerate</button>';return;}
+    var h="";
+    if(d.summary)h+='<div class="ai-section"><div class="ai-section-title">Summary</div><div class="ai-text">'+d.summary+'</div></div>';
+    if(d.highlights&&d.highlights.length){h+='<div class="ai-section"><div class="ai-section-title">What went well</div>';d.highlights.forEach(function(x){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--green)">+</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
+    if(d.concerns&&d.concerns.length){h+='<div class="ai-section"><div class="ai-section-title">Watch out for</div>';d.concerns.forEach(function(x){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--gold)">!</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
+    if(d.recommendations&&d.recommendations.length){h+='<div class="ai-section"><div class="ai-section-title">This weeks focus</div>';d.recommendations.forEach(function(x,i){h+='<div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--acc);font-weight:700;min-width:16px">'+(i+1)+'.</span><div class="ai-text">'+x+'</div></div>';});h+='</div>';}
+    if(d.focus_lift)h+='<div class="ai-section"><div class="ai-section-title">Priority lift</div><span class="ai-chip" style="background:var(--acc2);color:#fff;border-color:var(--acc)">'+d.focus_lift+'</span></div>';
+    h+='<button class="btns" style="margin-top:8px" onclick="generateReport()">Regenerate</button>';
+    document.getElementById("reportBody").innerHTML=h;
   });
 };
 
@@ -517,25 +594,24 @@ window.runDeloadCheck=function(){
   document.getElementById("deloadBody").innerHTML=loadingHTML("Analysing recovery status...");
   var data=buildDeloadContext();
   if(data.length<4){document.getElementById("deloadBody").innerHTML='<div style="color:var(--t3);font-size:13px">Need at least 4 logged sessions to run deload check.</div>';return;}
-  var system="You are an elite S&C coach. Analyse training data for overreaching. Respond in JSON with keys: needs_deload (boolean), confidence (low/medium/high), reasoning (2-3 sentences), signals (array), deload_protocol (object with duration_days, volume_reduction_percent, intensity_reduction_percent, focus) if needs_deload true else null. Pure JSON only.";
+  var system='You are an elite S&C coach. Analyse training data for overreaching.\n\nReturn ONLY a JSON object matching this exact skeleton, with no prose before or after. Start your response with {.\n\n{"needs_deload":true,"confidence":"low|medium|high","reasoning":"2-3 sentences","signals":["string","string"],"deload_protocol":{"duration_days":7,"volume_reduction_percent":40,"intensity_reduction_percent":20,"focus":"string"}}\n\nIf no deload is needed, set needs_deload to false and set deload_protocol to null.';
   var prompt="Analyse for overreaching or deload need.\n\nLast 14 days (most recent first): "+JSON.stringify(data);
   callClaude(system,prompt,function(res,err){
-    if(err){document.getElementById("deloadBody").innerHTML='<div style="color:var(--red);font-size:13px">Error: '+err+'</div>';return;}
-    try{
-      var d=JSON.parse(res.replace(/```json|```/g,"").trim());
-      var h="";
-      if(d.needs_deload){
-        h+='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:8px">⚠️</div><div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:6px">Deload recommended</div><div style="font-size:11px;color:var(--t3);margin-bottom:16px">Confidence: '+d.confidence+'</div></div>';
-        h+='<div class="ai-section"><div class="ai-section-title">Why</div><div class="ai-text">'+d.reasoning+'</div></div>';
-        if(d.signals&&d.signals.length){h+='<div class="ai-section"><div class="ai-section-title">Signals detected</div>';d.signals.forEach(function(s){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--gold)">-</span><div class="ai-text">'+s+'</div></div>';});h+='</div>';}
-        if(d.deload_protocol){var p=d.deload_protocol;h+='<div class="ai-section"><div class="ai-section-title">Deload protocol</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div class="scrd"><div class="slbl">Duration</div><div class="sval">'+p.duration_days+'d</div></div><div class="scrd"><div class="slbl">Volume</div><div class="sval">-'+p.volume_reduction_percent+'%</div></div></div><div class="ai-text">'+p.focus+'</div></div>';}
-      }else{
-        h+='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:8px">✅</div><div style="font-size:16px;font-weight:700;color:var(--green);margin-bottom:6px">No deload needed</div><div style="font-size:11px;color:var(--t3);margin-bottom:16px">Confidence: '+d.confidence+'</div></div>';
-        h+='<div class="ai-section"><div class="ai-section-title">Assessment</div><div class="ai-text">'+d.reasoning+'</div></div>';
-      }
-      h+='<button class="btns" style="margin-top:8px" onclick="runDeloadCheck()">Re-check</button>';
-      document.getElementById("deloadBody").innerHTML=h;
-    }catch(e){document.getElementById("deloadBody").innerHTML='<div class="ai-text">'+res+'</div>';}
+    if(err){document.getElementById("deloadBody").innerHTML='<div style="color:var(--red);font-size:13px;margin-bottom:10px">Could not reach AI coach: '+err+'</div><button class="btns" onclick="runDeloadCheck()">Try again</button>';return;}
+    var d=extractJSON(res);
+    if(!d){document.getElementById("deloadBody").innerHTML='<div style="color:var(--gold);font-size:13px;margin-bottom:10px">AI response was malformed. This is usually transient.</div><button class="btns" onclick="runDeloadCheck()">Re-check</button>';return;}
+    var h="";
+    if(d.needs_deload){
+      h+='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:8px">⚠️</div><div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:6px">Deload recommended</div><div style="font-size:11px;color:var(--t3);margin-bottom:16px">Confidence: '+d.confidence+'</div></div>';
+      h+='<div class="ai-section"><div class="ai-section-title">Why</div><div class="ai-text">'+d.reasoning+'</div></div>';
+      if(d.signals&&d.signals.length){h+='<div class="ai-section"><div class="ai-section-title">Signals detected</div>';d.signals.forEach(function(s){h+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--gold)">-</span><div class="ai-text">'+s+'</div></div>';});h+='</div>';}
+      if(d.deload_protocol){var p=d.deload_protocol;h+='<div class="ai-section"><div class="ai-section-title">Deload protocol</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div class="scrd"><div class="slbl">Duration</div><div class="sval">'+p.duration_days+'d</div></div><div class="scrd"><div class="slbl">Volume</div><div class="sval">-'+p.volume_reduction_percent+'%</div></div></div><div class="ai-text">'+p.focus+'</div></div>';}
+    }else{
+      h+='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:8px">✅</div><div style="font-size:16px;font-weight:700;color:var(--green);margin-bottom:6px">No deload needed</div><div style="font-size:11px;color:var(--t3);margin-bottom:16px">Confidence: '+d.confidence+'</div></div>';
+      h+='<div class="ai-section"><div class="ai-section-title">Assessment</div><div class="ai-text">'+d.reasoning+'</div></div>';
+    }
+    h+='<button class="btns" style="margin-top:8px" onclick="runDeloadCheck()">Re-check</button>';
+    document.getElementById("deloadBody").innerHTML=h;
   });
 };
 
@@ -559,20 +635,19 @@ window.doSwap=function(){
   var allEx=[];Object.keys(WL).forEach(function(k){WL[k].ex&&WL[k].ex.forEach(function(e){if(allEx.indexOf(e.n)<0)allEx.push(e.n);});});
   var sess=getOrCreate(curDay);
   var alreadyInSession=sess.exercises.map(function(e){return e.name;}).filter(function(n){return n!==def.n;});
-  var system="You are an elite strength coach. Suggest the single best exercise substitution. Respond in JSON with keys: name (string), reason (1-2 sentences), muscles (array), cues (array of 2-3 strings). Pure JSON only.";
+  var system='You are an elite strength coach. Suggest the single best exercise substitution.\n\nReturn ONLY a JSON object matching this exact skeleton, with no prose before or after. Start your response with {.\n\n{"name":"exercise name","reason":"1-2 sentences","muscles":["string","string"],"cues":["string","string","string"]}';
   var prompt="Original: "+def.n+"\nMuscles: "+def.m.join(", ")+"\nWorkout type: "+w.type+"\nContext: "+(ctx||"none")+"\nAlready in this session (do NOT suggest these): "+alreadyInSession.join(", ")+"\nChoose from exercises NOT already in the session. Prefer from: "+allEx.filter(function(n){return alreadyInSession.indexOf(n)<0&&n!==def.n;}).join(", ");
   callClaude(system,prompt,function(res,err){
-    if(err){document.getElementById("swapResult").innerHTML='<div style="color:var(--red);font-size:13px">'+err+'</div>';document.getElementById("swapBtn").disabled=false;return;}
-    try{
-      var d=JSON.parse(res.replace(/```json|```/g,"").trim());
-      var h='<div class="swap-result"><div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:4px">'+d.name+'</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">';
-      (d.muscles||[]).forEach(function(m){h+='<span class="ai-chip">'+m+'</span>';});
-      h+='</div><div class="ai-text" style="margin-bottom:10px">'+d.reason+'</div>';
-      if(d.cues&&d.cues.length){h+='<div style="font-size:11px;font-weight:600;color:var(--acc);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Coaching cues</div>';d.cues.forEach(function(c){h+='<div style="font-size:12px;color:var(--t2);margin-bottom:4px">- '+c+'</div>';});}
-      h+='<button class="btnp" style="margin-top:12px" onclick="applySwap(\''+d.name.replace(/'/g,"\\'")+'\')">Use this exercise</button></div>';
-      document.getElementById("swapResult").innerHTML=h;
-      document.getElementById("swapBtn").disabled=false;
-    }catch(e){document.getElementById("swapResult").innerHTML='<div class="ai-text">'+res+'</div>';document.getElementById("swapBtn").disabled=false;}
+    if(err){document.getElementById("swapResult").innerHTML='<div style="color:var(--red);font-size:13px;margin-bottom:10px">Could not reach AI coach: '+err+'</div><button class="btns" onclick="doSwap()">Try again</button>';document.getElementById("swapBtn").disabled=false;return;}
+    var d=extractJSON(res);
+    if(!d||!d.name){document.getElementById("swapResult").innerHTML='<div style="color:var(--gold);font-size:13px;margin-bottom:10px">AI response was malformed. This is usually transient.</div><button class="btns" onclick="doSwap()">Try again</button>';document.getElementById("swapBtn").disabled=false;return;}
+    var h='<div class="swap-result"><div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:4px">'+d.name+'</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">';
+    (d.muscles||[]).forEach(function(m){h+='<span class="ai-chip">'+m+'</span>';});
+    h+='</div><div class="ai-text" style="margin-bottom:10px">'+(d.reason||"")+'</div>';
+    if(d.cues&&d.cues.length){h+='<div style="font-size:11px;font-weight:600;color:var(--acc);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Coaching cues</div>';d.cues.forEach(function(c){h+='<div style="font-size:12px;color:var(--t2);margin-bottom:4px">- '+c+'</div>';});}
+    h+='<button class="btnp" style="margin-top:12px" onclick="applySwap(\''+d.name.replace(/'/g,"\\'")+'\')">Use this exercise</button></div>';
+    document.getElementById("swapResult").innerHTML=h;
+    document.getElementById("swapBtn").disabled=false;
   });
 };
 
@@ -702,7 +777,14 @@ function renderStrip(){
   document.getElementById("dstrip").innerHTML=h;
 }
 
-window.setDay=function(day){curDay=day;renderStrip();renderWorkout();};
+window.setDay=function(day){
+  curDay=day;
+  // v9: Clear all running timers when switching days - they're keyed by exercise index
+  // which is meaningless across different workouts
+  Object.keys(timers).forEach(function(k){if(timers[k]&&timers[k].iv)clearInterval(timers[k].iv);});
+  timers={};
+  renderStrip();renderWorkout();
+};
 window.beginDay=function(day){sessionStarted[day]=true;renderWorkout();};
 
 function renderWorkout(){
@@ -727,6 +809,7 @@ function renderWorkout(){
     var pb=prevBest(ex.name);
     var isPB=hasPB(ex);
     var hasVid=VIDEOS[ex.name]?true:false;
+    var defaultRest=(timers[ei]&&timers[ei].total)?timers[ei].total:(def&&def.rest?def.rest:90);
     h+='<div class="exblk"><div class="exhdr"><div>';
     h+='<div class="exnm" onclick="openHistModal(\''+ex.name.replace(/'/g,"\\'")+'\')">'+ex.name+(isPB?'<span class="pb">PB</span>':'')+'</div>';
     h+='<div class="extag">'+(def?def.m.join(" · "):"")+(def?" · "+def.reps+" reps · "+def.rest+"s rest":"")+'</div>';
@@ -748,15 +831,18 @@ function renderWorkout(){
         +'<button class="'+cc+'" onclick="tog('+ei+','+si+')">'+tick+'</button></div>';
     });
     h+='<button class="asbtn" onclick="addSet('+ei+')">+ Add set</button>';
-    h+='<div class="tbar" id="tb'+ei+'"><svg width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="var(--b2)" stroke-width="4"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--acc)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="131.9" stroke-linecap="round" transform="rotate(-90 25 25)" id="tc'+ei+'"/><text x="25" y="30" text-anchor="middle" fill="var(--t2)" font-size="11" font-weight="600" id="tt'+ei+'">1:30</text></svg>';
+    var drMin=Math.floor(defaultRest/60),drSec=defaultRest%60,drLabel=drMin+':'+(drSec<10?'0':'')+drSec;
+    h+='<div class="tbar" id="tb'+ei+'"><svg width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="var(--b2)" stroke-width="4"/><circle cx="25" cy="25" r="21" fill="none" stroke="var(--acc)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="131.9" stroke-linecap="round" transform="rotate(-90 25 25)" id="tc'+ei+'"/><text x="25" y="30" text-anchor="middle" fill="var(--t2)" font-size="11" font-weight="600" id="tt'+ei+'">'+drLabel+'</text></svg>';
     h+='<div style="flex:1"><div style="font-size:11px;color:var(--t3);margin-bottom:5px">Rest timer</div><div class="tpresets">';
-    [60,90,120,180].forEach(function(s){h+='<button class="tpre'+(s===90?" on":"")+'" id="tp'+ei+'_'+s+'" onclick="setTDur('+ei+','+s+')">'+s+'s</button>';});
+    [60,90,120,180].forEach(function(s){h+='<button class="tpre'+(s===defaultRest?" on":"")+'" id="tp'+ei+'_'+s+'" onclick="setTDur('+ei+','+s+')">'+s+'s</button>';});
     h+='</div></div><button class="tplay" onclick="togTimer('+ei+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="white" id="ti'+ei+'"><polygon points="5,3 19,12 5,21"/></svg></button></div></div>';
   });
   h+='</div>';
   var anyDone=sess.exercises.some(function(e){return e.sets.some(function(s){return s.done&&s.w&&s.r;});});
   h+='<button class="fbtn" id="fbtn" onclick="openRPE()" '+(anyDone?"":"disabled")+'>'+(anyDone?"Finish workout":"Log at least one set to finish")+'</button>';
   el.innerHTML=h;
+  // v9: Restore timer UI for any running/paused timers after DOM rebuild
+  restoreTimerUIAfterRender();
 }
 
 function showRestDay(){
@@ -814,7 +900,69 @@ window.confirmFinish=function(){
 };
 
 window.upd=function(ei,si,field,val){var s=getOrCreate(curDay);if(field===0)s.exercises[ei].sets[si].w=val;else s.exercises[ei].sets[si].r=val;save();refreshBar();};
-window.tog=function(ei,si){var s=getOrCreate(curDay);s.exercises[ei].sets[si].done=!s.exercises[ei].sets[si].done;save();renderWorkout();};
+window.tog=function(ei,si){
+  var s=getOrCreate(curDay);
+  var nowDone=!s.exercises[ei].sets[si].done;
+  s.exercises[ei].sets[si].done=nowDone;
+  save();
+  renderWorkout();
+  // Auto-start timer on tick done, stop on un-tick (per v9 spec)
+  if(nowDone) startTimerForSet(ei);
+  else stopTimerForSet(ei);
+};
+
+// v9: Start/restart the rest timer for exercise ei at its prescribed duration.
+// Called when the user ticks a set as done. Re-ticking restarts from zero.
+function startTimerForSet(ei){
+  var sess=getOrCreate(curDay);
+  var ex=sess.exercises[ei];if(!ex)return;
+  var def=exDef(curDay,ex.name);
+  // If timer already exists, honour any preset the user picked; otherwise use exercise default
+  var dur=(timers[ei]&&timers[ei].total)?timers[ei].total:(def&&def.rest?def.rest:90);
+  if(!timers[ei])timers[ei]={left:dur,total:dur,running:false,iv:null};
+  clearInterval(timers[ei].iv);
+  timers[ei].total=dur;timers[ei].left=dur;timers[ei].running=true;
+  // Resume audio context (required after user gesture on iOS/Safari)
+  try{var AC=window.AudioContext||window.webkitAudioContext;if(AC){if(!window._actx)window._actx=new AC();if(window._actx.state==="suspended")window._actx.resume();}}catch(e){}
+  setIcon(ei,true);
+  playBeep(660,0.1);setTimeout(function(){playBeep(880,0.15);},110);
+  updateTimerUI(ei);
+  timers[ei].iv=setInterval(function(){
+    timers[ei].left--;
+    updateTimerUI(ei);
+    if(timers[ei].left<=0){
+      clearInterval(timers[ei].iv);
+      timers[ei].running=false;
+      setIcon(ei,false);
+      playBeep(520,0.15);setTimeout(function(){playBeep(392,0.35);},140);
+      toast("Rest done - go!");
+    }
+  },1000);
+}
+
+// v9: Stop timer when user un-ticks a set. Leave other running timers alone.
+function stopTimerForSet(ei){
+  if(!timers[ei])return;
+  clearInterval(timers[ei].iv);
+  timers[ei].running=false;
+  timers[ei].left=timers[ei].total;
+  setIcon(ei,false);
+  updateTimerUI(ei);
+}
+
+// v9: Re-render wipes the DOM, but timer state lives in the `timers` object.
+// After each renderWorkout call, walk running timers and restore their UI.
+function restoreTimerUIAfterRender(){
+  Object.keys(timers).forEach(function(k){
+    var ei=parseInt(k);
+    var t=timers[ei];
+    if(!t)return;
+    // Restore the displayed time and progress ring
+    updateTimerUI(ei);
+    // Restore play/pause icon to reflect running state
+    setIcon(ei,!!t.running);
+  });
+}
 window.addSet=function(ei){var s=getOrCreate(curDay);s.exercises[ei].sets.push({w:"",r:"",done:false});save();renderWorkout();};
 
 function refreshBar(){
@@ -889,22 +1037,237 @@ function syncSheets(sess){
 }
 function syncBWToSheets(entry){if(!ST.sheetsUrl)return;fetch(ST.sheetsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({bodylog:[entry]})}).catch(function(){});}
 
+// v9 Progress page: weekly comparison + muscle balance + strength cards + volume trend.
+// All computed from ST.sessions on demand, no schema changes.
+
+// Helper: Monday-anchored ISO week key "YYYY-Www"
+function weekKeyOf(dateStr){
+  var d=new Date(dateStr+"T00:00:00");
+  // Move to Monday of this week
+  var day=d.getDay(); // 0=Sun..6=Sat
+  var diff=(day===0?-6:1-day);
+  d.setDate(d.getDate()+diff);
+  var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();
+  return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+}
+
+// Helper: aggregate a session's done sets into { volume, topSetKg, setCount }
+function sessionAggregates(s){
+  var vol=0,top=0,sets=0;
+  (s.exercises||[]).forEach(function(e){(e.sets||[]).forEach(function(st){if(!st.done||!st.w||!st.r)return;var w=parseFloat(st.w)||0,r=parseInt(st.r)||0;vol+=w*r;if(w>top)top=w;sets++;});});
+  return {volume:vol,topSetKg:top,setCount:sets};
+}
+
+// Helper: Epley estimated 1RM from a set
+function epley1RM(w,r){w=parseFloat(w)||0;r=parseInt(r)||0;if(!w||!r)return 0;return w*(1+r/30);}
+
+// Helper: aggregate sessions for a date range [fromIso, toIso] inclusive
+function aggregateRange(fromIso,toIso){
+  var out={volume:0,topSetKg:0,sessionCount:0};
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];if(dt<fromIso||dt>toIso)return;
+    var s=ST.sessions[k];var a=sessionAggregates(s);
+    if(a.setCount===0)return;
+    out.volume+=a.volume;
+    if(a.topSetKg>out.topSetKg)out.topSetKg=a.topSetKg;
+    out.sessionCount++;
+  });
+  return out;
+}
+
+// Section 1: week vs last week strip
+function renderWeekCompare(){
+  var today=new Date();
+  // This week = last 7 days ending today; last week = 7 days before that. Simple rolling 7, not ISO week.
+  var fmt=function(d){var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;};
+  var thisEnd=new Date(today);
+  var thisStart=new Date(today);thisStart.setDate(thisStart.getDate()-6);
+  var lastEnd=new Date(thisStart);lastEnd.setDate(lastEnd.getDate()-1);
+  var lastStart=new Date(lastEnd);lastStart.setDate(lastStart.getDate()-6);
+  var T=aggregateRange(fmt(thisStart),fmt(thisEnd));
+  var L=aggregateRange(fmt(lastStart),fmt(lastEnd));
+  function delta(cur,prev,unit){
+    if(prev===0&&cur===0)return '<div class="wkdelta flat">no data</div>';
+    if(prev===0)return '<div class="wkdelta up">new</div>';
+    var pct=Math.round(((cur-prev)/prev)*100);
+    if(pct===0)return '<div class="wkdelta flat">same as last wk</div>';
+    var cls=pct>0?"up":"dn";var arrow=pct>0?"▲":"▼";
+    return '<div class="wkdelta '+cls+'">'+arrow+' '+Math.abs(pct)+'% vs last wk</div>';
+  }
+  var volTxt=T.volume>=1000?(T.volume/1000).toFixed(1)+"t":Math.round(T.volume)+"kg";
+  var topTxt=T.topSetKg>0?Math.round(T.topSetKg)+"kg":"–";
+  var h='<div class="wkcmp">'
+    +'<div class="wkcrd"><div class="wklbl">Sessions</div><div class="wkval">'+T.sessionCount+'</div>'+delta(T.sessionCount,L.sessionCount)+'</div>'
+    +'<div class="wkcrd"><div class="wklbl">Volume</div><div class="wkval">'+volTxt+'</div>'+delta(T.volume,L.volume)+'</div>'
+    +'<div class="wkcrd"><div class="wklbl">Top set</div><div class="wkval">'+topTxt+'</div>'+delta(T.topSetKg,L.topSetKg)+'</div>'
+    +'</div>';
+  document.getElementById("weekCompare").innerHTML=h;
+}
+
+// Section 2: muscle group balance (sets per muscle, last 28 days)
+// Groups muscle tags from WL into canonical categories.
+var MUSCLE_GROUPS={
+  "Chest":["Chest","Upper Chest"],
+  "Back":["Lats","Mid Back","Traps","Lower Back"],
+  "Shoulders":["Shoulders","Front Delts","Lateral Delts","Rear Delts","Rotator Cuff"],
+  "Arms":["Biceps","Biceps Long Head","Brachialis","Triceps","Triceps Long Head"],
+  "Quads":["Quads"],
+  "Hamstrings":["Hamstrings"],
+  "Glutes":["Glutes"],
+  "Calves":["Calves","Soleus"],
+  "Core":["Core","Abs","TVA","Rectus Abdominis","Hip Flexors","Balance"]
+};
+function renderMuscleBalance(){
+  var today=new Date();var cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-27);
+  var fmt=function(d){var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;};
+  var cutIso=fmt(cutoff);
+  var counts={};Object.keys(MUSCLE_GROUPS).forEach(function(g){counts[g]=0;});
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];if(dt<cutIso)return;
+    var s=ST.sessions[k];
+    (s.exercises||[]).forEach(function(e){
+      var def=exDef(s.day,e.name);var muscles=def?def.m:[];
+      var doneSets=(e.sets||[]).filter(function(st){return st.done&&st.w&&st.r;}).length;
+      if(doneSets===0)return;
+      // Attribute each done set to every muscle group this exercise touches
+      muscles.forEach(function(m){
+        Object.keys(MUSCLE_GROUPS).forEach(function(g){
+          if(MUSCLE_GROUPS[g].indexOf(m)>=0)counts[g]+=doneSets;
+        });
+      });
+    });
+  });
+  var max=Math.max.apply(null,Object.keys(counts).map(function(g){return counts[g];}));
+  if(max===0){document.getElementById("muscleBal").innerHTML='<div style="color:var(--t3);font-size:13px;padding:0 16px">No data in the last 28 days.</div>';return;}
+  // Hypertrophy literature: ~10 sets/wk per muscle = 40/28days is "good". Below 20 is low.
+  var h="";
+  Object.keys(counts).forEach(function(g){
+    var c=counts[g];var pct=Math.round(c/max*100);
+    var cls=c<20?"low":(c<40?"mid":"high");
+    h+='<div class="mgrow"><span class="mglbl">'+g+'</span><div class="mgtrack"><div class="mgfill '+cls+'" style="width:'+pct+'%"></div></div><span class="mgval">'+c+' set'+(c===1?'':'s')+'</span></div>';
+  });
+  document.getElementById("muscleBal").innerHTML=h;
+}
+
+// Section 3: strength progression cards (per big lift, tap to expand)
+var PROG_LIFTS=["Barbell Bench Press","Barbell Back Squat","Romanian Deadlift","Barbell Overhead Press","Weighted Pull-Up","Pendlay Row","Hip Thrust"];
+var liftCardOpen={}; // ei -> boolean
+
+function buildLiftHistory(lift){
+  // Returns [{date, top1RM, topW, topR}] sorted ascending by date, one entry per session
+  var rows=[];
+  Object.keys(ST.sessions).sort().forEach(function(k){
+    var s=ST.sessions[k];
+    (s.exercises||[]).forEach(function(e){
+      if(e.name!==lift)return;
+      var best=null;
+      (e.sets||[]).forEach(function(st){if(!st.done||!st.w||!st.r)return;var est=epley1RM(st.w,st.r);if(!best||est>best.est)best={est:est,w:parseFloat(st.w),r:parseInt(st.r)};});
+      if(best)rows.push({date:k.split("_")[0],top1RM:best.est,topW:best.w,topR:best.r});
+    });
+  });
+  return rows;
+}
+
+function renderLiftCards(){
+  var h="";
+  PROG_LIFTS.forEach(function(lift,idx){
+    var hist=buildLiftHistory(lift);
+    if(!hist.length)return; // skip lifts with no data
+    var cur=hist[hist.length-1];
+    var curRM=Math.round(cur.top1RM);
+    // Delta vs ~30 days ago
+    var today=new Date();var cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-30);
+    var y=cutoff.getFullYear(),m=cutoff.getMonth()+1,dd=cutoff.getDate();
+    var cutIso=y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+    var old=null;for(var i=hist.length-1;i>=0;i--){if(hist[i].date<=cutIso){old=hist[i];break;}}
+    var deltaHtml="";
+    if(old){
+      var diff=Math.round(cur.top1RM-old.top1RM);
+      if(diff>0)deltaHtml='<div class="d" style="color:var(--green)">+'+diff+'kg (30d)</div>';
+      else if(diff<0)deltaHtml='<div class="d" style="color:var(--red)">'+diff+'kg (30d)</div>';
+      else deltaHtml='<div class="d" style="color:var(--t3)">flat (30d)</div>';
+    }else{
+      deltaHtml='<div class="d" style="color:var(--t3)">'+hist.length+' session'+(hist.length===1?"":"s")+'</div>';
+    }
+    // Sparkline (mini)
+    var sp=hist.slice(-8).map(function(p){return p.top1RM;});
+    var spMin=Math.min.apply(null,sp),spMax=Math.max.apply(null,sp);
+    var sW=80,sH=24;
+    var pts=sp.map(function(v,i){var x=(sp.length>1?i/(sp.length-1)*sW:sW/2);var yv=spMax===spMin?sH/2:(1-(v-spMin)/(spMax-spMin))*sH;return x.toFixed(1)+","+yv.toFixed(1);}).join(" ");
+    var spark='<svg width="'+sW+'" height="'+sH+'" style="flex-shrink:0"><polyline points="'+pts+'" fill="none" stroke="var(--acc)" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    var openCls=liftCardOpen[idx]?" open":"";
+    h+='<div class="liftcard'+openCls+'" onclick="toggleLiftCard('+idx+')">';
+    h+='<div class="liftrow"><div class="liftnm"><div class="n">'+lift+'</div><div class="s">Top today: '+cur.topW+'kg × '+cur.topR+'</div></div>';
+    h+=spark;
+    h+='<div class="liftval"><div class="v">'+curRM+'kg</div>'+deltaHtml+'</div></div>';
+    if(liftCardOpen[idx]){
+      // Full chart of full history top-set weight over time
+      var vals=hist.map(function(p){return p.top1RM;});
+      var vMin=Math.min.apply(null,vals),vMax=Math.max.apply(null,vals);
+      var cW=296,cH=100,pad=8;
+      var cpts=vals.map(function(v,i){var x=pad+(vals.length>1?i/(vals.length-1)*(cW-pad*2):(cW-pad*2)/2);var yv=vMax===vMin?cH/2:pad+(1-(v-vMin)/(vMax-vMin))*(cH-pad*2);return x.toFixed(1)+","+yv.toFixed(1);}).join(" ");
+      var full='<svg width="'+cW+'" height="'+cH+'" viewBox="0 0 '+cW+' '+cH+'" style="display:block;margin:10px auto"><polyline points="'+cpts+'" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linejoin="round"/>';
+      vals.forEach(function(v,i){var x=pad+(vals.length>1?i/(vals.length-1)*(cW-pad*2):(cW-pad*2)/2);var yv=vMax===vMin?cH/2:pad+(1-(v-vMin)/(vMax-vMin))*(cH-pad*2);full+='<circle cx="'+x.toFixed(1)+'" cy="'+yv.toFixed(1)+'" r="3" fill="var(--acc)"/>';});
+      full+='</svg>';
+      h+='<div class="liftchart"><div style="font-size:11px;color:var(--t3);margin-top:8px">Estimated 1RM over '+vals.length+' sessions · '+Math.round(vMin)+'–'+Math.round(vMax)+'kg</div>'+full+'</div>';
+    }
+    h+='</div>';
+  });
+  if(!h)h='<div style="color:var(--t3);font-size:13px;padding:0 16px">No strength data yet. Log a few sessions first.</div>';
+  document.getElementById("liftCards").innerHTML=h;
+}
+
+window.toggleLiftCard=function(idx){liftCardOpen[idx]=!liftCardOpen[idx];renderLiftCards();};
+
+// Section 4: 12-week volume trend, stacked by workout type
+var TYPE_COLORS={upper:"#fcd34d",lower:"#fca5a5",push:"#c4b5fd",pull:"#93c5fd",legs:"#86efac"};
+function renderVolumeTrend(){
+  var today=new Date();
+  // Build 12 Mondays going back
+  var mondays=[];for(var i=11;i>=0;i--){var d=new Date(today);var day=d.getDay();var diff=(day===0?-6:1-day)-7*i;d.setDate(d.getDate()+diff);var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();mondays.push(y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd);}
+  // For each week, sum volume per type
+  var weeks=mondays.map(function(mk){return {mk:mk,byType:{upper:0,lower:0,push:0,pull:0,legs:0},total:0};});
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];var wk=weekKeyOf(dt);
+    var target=null;for(var i=0;i<weeks.length;i++){if(weeks[i].mk===wk){target=weeks[i];break;}}
+    if(!target)return;
+    var s=ST.sessions[k];var a=sessionAggregates(s);
+    if(a.setCount===0)return;
+    var t=s.type||"upper";if(!target.byType.hasOwnProperty(t))t="upper";
+    target.byType[t]+=a.volume;target.total+=a.volume;
+  });
+  var maxTotal=Math.max.apply(null,weeks.map(function(w){return w.total;}));
+  if(maxTotal===0){document.getElementById("volTrend").innerHTML='<div style="color:var(--t3);font-size:13px;padding:0 16px">No volume data in the last 12 weeks.</div>';return;}
+  var h='<div class="vbar-chart"><div class="vbar-row">';
+  weeks.forEach(function(w){
+    var heightPct=Math.round(w.total/maxTotal*100);
+    h+='<div class="vbar-col" style="height:'+heightPct+'%">';
+    Object.keys(w.byType).forEach(function(t){
+      if(w.byType[t]===0)return;
+      var segPct=Math.round(w.byType[t]/w.total*100);
+      h+='<div class="vbar-seg" style="background:'+TYPE_COLORS[t]+';height:'+segPct+'%"></div>';
+    });
+    h+='</div>';
+  });
+  h+='</div><div class="vbar-labels">';
+  weeks.forEach(function(w,i){
+    // Show every other week label to avoid crowding
+    var lbl=(i%2===0)?w.mk.slice(5):"";
+    h+='<div class="vbar-lbl">'+lbl+'</div>';
+  });
+  h+='</div><div class="vbar-legend">';
+  Object.keys(TYPE_COLORS).forEach(function(t){
+    h+='<div class="vbar-legend-item"><span class="vbar-swatch" style="background:'+TYPE_COLORS[t]+'"></span>'+t.charAt(0).toUpperCase()+t.slice(1)+'</div>';
+  });
+  h+='</div></div>';
+  document.getElementById("volTrend").innerHTML=h;
+}
+
 function renderProgress(){
-  var sessions=Object.values(ST.sessions);
-  var totVol=0,totSess=0,totSets=0;
-  sessions.forEach(function(s){var any=false;(s.exercises||[]).forEach(function(e){(e.sets||[]).forEach(function(st){totVol+=(parseFloat(st.w)||0)*(parseInt(st.r)||0);if(st.done){totSets++;any=true;}});});if(any)totSess++;});
-  function sc(l,v,s){return '<div class="scrd"><div class="slbl">'+l+'</div><div class="sval">'+v+'</div><div class="ssub">'+s+'</div></div>';}
-  document.getElementById("statsGrid").innerHTML=sc("Total volume",(totVol/1000).toFixed(1)+"t","all time")+sc("Sessions",totSess,"completed")+sc("Sets logged",totSets,"total")+sc("Streak",calcStreak(),"days 🔥");
-  var mv={};
-  sessions.forEach(function(s){(s.exercises||[]).forEach(function(e){var def=exDef(s.day,e.name);var vol=(e.sets||[]).reduce(function(a,st){return a+(parseFloat(st.w)||0)*(parseInt(st.r)||0);},0);(def?def.m:["Other"]).forEach(function(m){mv[m]=(mv[m]||0)+vol;});});});
-  var top=Object.keys(mv).map(function(k){return[k,mv[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
-  var maxV=top.length?top[0][1]:1;
-  var ch="";top.forEach(function(e){var lbl=e[1]>=1000?(e[1]/1000).toFixed(1)+"t":Math.round(e[1])+"kg";ch+='<div class="brow"><span class="blbl">'+e[0]+'</span><div class="btrack"><div class="bfill" style="width:'+Math.round(e[1]/maxV*100)+'%"><span class="bval">'+lbl+'</span></div></div></div>';});
-  document.getElementById("volChart").innerHTML=ch||'<div style="color:var(--t3);font-size:13px">No data yet.</div>';
-  var recent=Object.keys(ST.sessions).filter(function(k){var s=ST.sessions[k];return s.exercises&&s.exercises.some(function(e){return e.sets&&e.sets.some(function(st){return st.done;});});}).sort(function(a,b){return b.localeCompare(a);}).slice(0,8);
-  var hh="";
-  recent.forEach(function(k){var s=ST.sessions[k],dt=k.split("_")[0];var vol=(s.exercises||[]).reduce(function(a,e){return a+(e.sets||[]).reduce(function(b,st){return b+(parseFloat(st.w)||0)*(parseInt(st.r)||0);},0);},0);var sets=(s.exercises||[]).reduce(function(a,e){return a+(e.sets||[]).filter(function(st){return st.done;}).length;},0);var vlbl=vol>=1000?(vol/1000).toFixed(1)+"t":Math.round(vol)+"kg";var badge=BC[s.type]||"";hh+='<div class="hitem"><div><div style="font-size:14px;font-weight:600">'+s.day+'</div><div style="font-size:11px;color:var(--t3);margin-top:2px">'+dt+' &middot; '+sets+' sets'+(s.rpe?' &middot; RPE '+s.rpe:'')+'</div></div><div style="text-align:right"><span class="wbadge '+badge+'" style="margin-bottom:4px">'+(s.type||"").toUpperCase()+'</span><div style="font-size:12px;color:var(--t3)">'+vlbl+'</div></div></div>';});
-  document.getElementById("histList").innerHTML=hh||'<div style="color:var(--t3);font-size:13px;padding:0 16px">No sessions yet.</div>';
+  renderWeekCompare();
+  renderMuscleBalance();
+  renderLiftCards();
+  renderVolumeTrend();
 }
 
 window.logBodyweight=function(){
