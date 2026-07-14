@@ -6,57 +6,106 @@
 <title>GymTrack</title>
 <style>
 :root{
-  --ink:#1a1a2e; --paper:#fdfcf9; --accent:#ff5a36; --accent-dim:#ffd6c7;
-  --muted:#6b6b7b; --line:#e8e6df;
+  --ink:#15161a; --panel:#1f212a; --panel-2:#272a35; --chalk:#f1ece0;
+  --muted:#8b8879; --line:rgba(241,236,224,0.10);
+  --heavy:#d1541e; --lightday:#3d8fd6; --accent:var(--heavy);
+  --good:#43b876; --bad:#e0503a; --warn:#e0a83a;
   --space-1:8px; --space-2:16px; --space-3:24px; --space-4:40px;
+  --font-display:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
-#app{min-height:100vh;display:flex;flex-direction:column;}
-.screen{flex:1;display:flex;flex-direction:column;padding:var(--space-3);}
-.btn{appearance:none;border:none;border-radius:16px;padding:20px 24px;
-  font-size:20px;font-weight:700;min-height:64px;cursor:pointer;}
-.btn-primary{background:var(--ink);color:var(--paper);}
-.btn-accent{background:var(--accent);color:#fff;}
-.btn-ghost{background:transparent;color:var(--muted);border:2px solid var(--line);}
-.title-xl{font-size:36px;font-weight:800;line-height:1.1;margin:0 0 var(--space-2);}
-.label-muted{color:var(--muted);font-size:14px;text-transform:uppercase;letter-spacing:0.08em;}
-.timer-full{position:fixed;inset:0;background:var(--ink);color:var(--paper);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
-.timer-count{font-size:96px;font-weight:800;font-variant-numeric:tabular-nums;}
+/* Accent shifts with the day's intensity -- heavy days run oxide-red,
+   light days run steel-blue. This is the one piece of information that
+   matters most in this program, so the whole screen says it before you
+   read a word. */
+.day-light{--accent:var(--lightday);}
+.day-heavy{--accent:var(--heavy);}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+html,body{margin:0;height:100%;background:var(--ink);color:var(--chalk);
+  font-family:var(--font-display);-webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;}
+#app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;}
+.screen{flex:1;display:flex;flex-direction:column;
+  padding:calc(var(--sat) + var(--space-3)) calc(var(--sar) + var(--space-3))
+          calc(var(--sab) + var(--space-3)) calc(var(--sal) + var(--space-3));}
+
+.btn{appearance:none;-webkit-appearance:none;border:none;border-radius:14px;
+  padding:18px 22px;font-family:var(--font-display);font-size:17px;font-weight:700;
+  min-height:52px;cursor:pointer;touch-action:manipulation;
+  transition:transform .12s ease;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--panel-2);color:var(--chalk);}
+.btn-accent{background:var(--accent);color:#0d0d0f;font-weight:800;}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--line);}
+
+.label-muted{color:var(--muted);font-size:12px;text-transform:uppercase;
+  letter-spacing:0.12em;font-weight:600;}
+.title-xl{font-size:34px;font-weight:800;line-height:1.05;letter-spacing:-0.02em;
+  margin:4px 0 var(--space-2);color:var(--chalk);}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+
+input[type="text"],input[type="number"]{
+  background:var(--panel);color:var(--chalk);border:1.5px solid var(--line);
+  border-radius:12px;-webkit-appearance:none;appearance:none;
+  font-family:var(--font-display);}
+input[type="number"]{font-family:var(--font-mono);}
+input::placeholder{color:var(--muted);}
+
+/* Home: "loaded bar" -- today's exercises at a glance, primaries at full
+   accent, accessories dimmer, width proportional to prescribed sets. */
+.loadbar{display:flex;gap:3px;height:10px;border-radius:4px;overflow:hidden;
+  margin:12px 0 4px;background:var(--panel);}
+.loadseg{background:var(--accent);}
+.loadseg.accessory{opacity:.35;}
+
+/* Rest timer: full-screen radial dial, the app's signature moment. */
+.timer-full{position:fixed;inset:0;background:var(--ink);color:var(--chalk);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:100;padding:calc(var(--sat) + var(--space-3)) var(--space-3)
+  calc(var(--sab) + var(--space-3)) var(--space-3);}
+.dial{position:relative;width:240px;height:240px;}
+.dial svg{width:100%;height:100%;transform:rotate(-90deg);}
+.dial-center{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;}
+.timer-count{font-family:var(--font-mono);font-size:52px;font-weight:700;
+  letter-spacing:-0.02em;}
+
 /* Task 10: progress/chat/settings screens */
 .chat-msg{border-radius:12px;padding:10px 14px;margin-bottom:8px;max-width:85%;font-size:15px;}
-.chat-msg.user{background:var(--ink);color:var(--paper);margin-left:auto;}
-.chat-msg.ai{background:var(--accent-dim);color:var(--ink);margin-right:auto;}
+.chat-msg.user{background:var(--accent);color:#0d0d0f;margin-left:auto;font-weight:600;}
+.chat-msg.ai{background:var(--panel);color:var(--chalk);margin-right:auto;}
 .wkcmp{display:flex;gap:8px;margin-bottom:16px;}
-.wkcrd{flex:1;background:var(--accent-dim);border-radius:12px;padding:12px;text-align:center;}
+.wkcrd{flex:1;background:var(--panel);border-radius:12px;padding:12px;text-align:center;}
 .wklbl{font-size:12px;color:var(--muted);}
-.wkval{font-size:22px;font-weight:800;}
+.wkval{font-size:22px;font-weight:800;font-family:var(--font-mono);}
 .wkdelta{font-size:11px;color:var(--muted);}
-.wkdelta.up{color:#1a7a3a;}
-.wkdelta.dn{color:#c0392b;}
+.wkdelta.up{color:var(--good);}
+.wkdelta.dn{color:var(--bad);}
 .mgrow{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .mglbl{width:80px;font-size:13px;}
-.mgtrack{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden;}
+.mgtrack{flex:1;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;}
 .mgfill{height:100%;background:var(--accent);}
-.mgfill.low{background:#c0392b;}
-.mgfill.mid{background:#e0a800;}
-.mgfill.high{background:#1a7a3a;}
-.mgval{font-size:12px;color:var(--muted);width:56px;text-align:right;}
-.liftcard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;}
+.mgfill.low{background:var(--bad);}
+.mgfill.mid{background:var(--warn);}
+.mgfill.high{background:var(--good);}
+.mgval{font-size:12px;color:var(--muted);width:56px;text-align:right;font-family:var(--font-mono);}
+.liftcard{border:1px solid var(--line);background:var(--panel);border-radius:12px;
+  padding:12px;margin-bottom:8px;cursor:pointer;}
 .liftrow{display:flex;align-items:center;gap:10px;}
 .liftnm{flex:1;}
 .liftnm .n{font-weight:700;font-size:14px;}
-.liftnm .s{font-size:11px;color:var(--muted);}
+.liftnm .s{font-size:11px;color:var(--muted);font-family:var(--font-mono);}
 .liftval{text-align:right;}
-.liftval .v{font-weight:800;font-size:16px;}
+.liftval .v{font-weight:800;font-size:16px;font-family:var(--font-mono);}
 .vbar-chart{margin-top:8px;}
 .vbar-row{display:flex;align-items:flex-end;height:100px;gap:3px;}
 .vbar-col{flex:1;display:flex;flex-direction:column-reverse;min-height:2px;}
 .vbar-seg{width:100%;}
 .vbar-labels{display:flex;gap:3px;}
-.vbar-lbl{flex:1;font-size:9px;color:var(--muted);text-align:center;}
+.vbar-lbl{flex:1;font-size:9px;color:var(--muted);text-align:center;font-family:var(--font-mono);}
 .vbar-legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);}
 .vbar-legend-item{display:flex;align-items:center;gap:4px;}
 .vbar-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
@@ -220,8 +269,26 @@ function advanceScreen(state, event){
 var appState = null;
 var curSession = null;
 
+// Derives which day's accent (heavy/light) should tint the current screen.
+// In a session this is the session's own day; outside a session it's
+// whatever today's scheduled day is, so Home always previews the right mood.
+function accentDayKey(){
+  if (curSession && curSession.dayKey) return curSession.dayKey;
+  var day = todayName();
+  return (ST.schedule && ST.schedule[day]) || DEFAULT_SCHED[day];
+}
+function accentClassFor(){
+  var dayKey = accentDayKey();
+  if (!dayKey) return "";
+  var k = dayKey.toLowerCase();
+  if (k.indexOf("light") >= 0) return "day-light";
+  if (k.indexOf("heavy") >= 0) return "day-heavy";
+  return "";
+}
+
 function render(){
   var app = document.getElementById("app");
+  document.body.className = accentClassFor();
   if (!appState) { app.innerHTML = renderHome(); return; }
   switch(appState.screen){
     case "home": app.innerHTML = renderHome(); break;
@@ -246,9 +313,19 @@ function renderHome(){
   var dayKey = ST.schedule && ST.schedule[day] || DEFAULT_SCHED[day];
   var w = WL[dayKey];
   var isRest = dayKey === "rest";
+  var loadbar = "";
+  if (!isRest) {
+    var totalSets = w.ex.reduce(function(sum, e){ return sum + e.sets; }, 0);
+    var segs = w.ex.map(function(e){
+      var pct = Math.round((e.sets / totalSets) * 100);
+      return '<div class="loadseg' + (e.primary ? '' : ' accessory') + '" style="flex:' + pct + '"></div>';
+    }).join("");
+    loadbar = '<div class="loadbar">' + segs + '</div>';
+  }
   return '<div class="screen">' +
     '<div class="label-muted">' + day + '</div>' +
     '<h1 class="title-xl">' + w.label + '</h1>' +
+    loadbar +
     (isRest ? '<p>Enjoy the rest day.</p>' :
       '<button class="btn btn-accent" onclick="startToday()">Start</button>') +
     '<div style="margin-top:auto;display:flex;gap:8px;">' +
@@ -286,12 +363,12 @@ function renderExercise(){
   var ex = currentExercise();
   var doneSets = curSession.log.filter(function(l){ return l.ex === ex.n; });
   var doneList = doneSets.map(function(l){
-    return '<div>Set ' + l.setNum + ': ' + l.w + ' x ' + l.r + '</div>';
+    return '<div class="num">Set ' + l.setNum + ': ' + l.w + ' x ' + l.r + '</div>';
   }).join("");
   return '<div class="screen">' +
     '<div class="label-muted">Exercise ' + (appState.exIndex + 1) + ' of ' + WL[curSession.dayKey].ex.length + '</div>' +
     '<h1 class="title-xl">' + ex.n + '</h1>' +
-    '<p>' + ex.sets + ' sets &times; ' + ex.reps + ' reps &middot; RIR ' + ex.rir + '</p>' +
+    '<p class="num">' + ex.sets + ' sets &times; ' + ex.reps + ' reps &middot; RIR ' + ex.rir + '</p>' +
     '<p class="label-muted">' + TIPS[ex.n] + '</p>' +
     (VIDEOS[ex.n] ? '<a class="btn-ghost" style="display:inline-block;text-decoration:none;padding:8px 0;font-size:14px;" href="https://www.youtube.com/watch?v=' + VIDEOS[ex.n] + '" target="_blank" rel="noopener">Watch form demo</a>' : '') +
     '<div>' + doneList + '</div>' +
@@ -323,15 +400,25 @@ function renderRestTimer(){
   var m = Math.floor(appState.restRemaining / 60);
   var sec = appState.restRemaining % 60;
   var display = m + ":" + (sec < 10 ? "0" : "") + sec;
+  var ratio = appState.restTotal > 0 ? (appState.restRemaining / appState.restTotal) : 0;
+  var r = 100, circ = 2 * Math.PI * r;
+  var offset = circ * (1 - ratio);
   ensureRestTicking();
   return '<div class="timer-full">' +
     '<div class="label-muted">Rest</div>' +
-    '<div class="timer-count">' + display + '</div>' +
-    '<div style="display:flex;gap:16px;margin-top:32px;">' +
+    '<div class="dial">' +
+      '<svg viewBox="0 0 220 220">' +
+        '<circle cx="110" cy="110" r="' + r + '" fill="none" stroke="rgba(241,236,224,0.08)" stroke-width="14"/>' +
+        '<circle cx="110" cy="110" r="' + r + '" fill="none" stroke="var(--accent)" stroke-width="14" ' +
+          'stroke-linecap="round" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '"/>' +
+      '</svg>' +
+      '<div class="dial-center"><div class="timer-count num">' + display + '</div></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:16px;margin-top:28px;">' +
       '<button class="btn btn-ghost" onclick="adjustRest(-15)">-15s</button>' +
       '<button class="btn btn-ghost" onclick="adjustRest(15)">+15s</button>' +
     '</div>' +
-    '<button class="btn btn-accent" style="margin-top:24px;" onclick="skipRest()">Skip</button>' +
+    '<button class="btn btn-accent" style="margin-top:20px;" onclick="skipRest()">Skip</button>' +
   '</div>';
 }
 
@@ -393,8 +480,8 @@ function renderFinish(){
   save();
   return '<div class="screen">' +
     '<h1 class="title-xl">Session complete</h1>' +
-    '<p>' + summary.setCount + ' sets logged &middot; ' + summary.totalVolume + ' total volume</p>' +
-    (summary.best ? '<p>Top set: ' + summary.best.ex + ' ' + summary.best.w + ' x ' + summary.best.r + '</p>' : '') +
+    '<p class="num">' + summary.setCount + ' sets logged &middot; ' + summary.totalVolume + ' total volume</p>' +
+    (summary.best ? '<p class="num">Top set: ' + summary.best.ex + ' ' + summary.best.w + ' x ' + summary.best.r + '</p>' : '') +
     '<button class="btn btn-primary" onclick="finishSession()">Done</button>' +
   '</div>';
 }
