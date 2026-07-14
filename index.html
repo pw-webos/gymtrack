@@ -931,11 +931,38 @@ function sendChat(){
 // full-screen string with the current ST.apiUrl/ST.sheetsUrl baked into the
 // input `value` attributes, and the save/clear handlers call render() after
 // mutating ST instead of updating individual elements.
+// Weekly schedule editor. v9 had a dedicated "Edit schedule" modal
+// (old app/gymtrack-v9.html:1302-1319) that got dropped when Settings was
+// rebuilt for v10 in Task 10 -- only the API/Sheets URL fields were copied.
+// Restored here as an inline section rather than a modal, consistent with
+// v10's single-screen architecture (no modals exist anywhere else in v10).
+var SCHED_TYPES = ["upperHeavy", "lowerHeavy", "upperLight", "lowerLight", "rest"];
+
+function renderScheduleEditor(){
+  var rows = DAYS.map(function(day){
+    var key = ST.schedule[day] || "rest";
+    return '<div class="mgrow"><span class="mglbl" style="width:96px;">' + day + '</span>' +
+      '<span style="flex:1;">' + WL[key].label + '</span>' +
+      '<button class="btn btn-ghost" style="min-height:36px;padding:8px 14px;font-size:14px;" onclick="cycleSchedDay(\'' + day + '\')">Change</button>' +
+    '</div>';
+  }).join("");
+  return '<div class="label-muted" style="margin-top:24px">Weekly schedule</div>' + rows;
+}
+
+function cycleSchedDay(day){
+  var cur = ST.schedule[day] || "rest";
+  var idx = SCHED_TYPES.indexOf(cur);
+  ST.schedule[day] = SCHED_TYPES[(idx + 1) % SCHED_TYPES.length];
+  save();
+  render();
+}
+
 function renderSettings(){
   return '<div class="screen">' +
     '<button class="btn btn-ghost" onclick="goHome()">Back</button>' +
     '<h1 class="title-xl">Settings</h1>' +
-    '<div class="label-muted">AI Coach API URL</div>' +
+    renderScheduleEditor() +
+    '<div class="label-muted" style="margin-top:24px">AI Coach API URL</div>' +
     '<input id="apiUrlInput" type="text" value="'+(ST.apiUrl||"")+'" style="font-size:16px;padding:12px;margin:8px 0;">' +
     '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
       '<button class="btn btn-ghost" onclick="saveApiUrl()">Save</button>' +
@@ -997,6 +1024,7 @@ if (typeof window !== "undefined") {
   window.goChat = goChat;
   window.sendChat = sendChat;
   window.toggleLiftCard = toggleLiftCard;
+  window.cycleSchedDay = cycleSchedDay;
   window.saveApiUrl = saveApiUrl;
   window.clearApiUrl = clearApiUrl;
   window.saveSheets = saveSheets;
