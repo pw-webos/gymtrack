@@ -1,0 +1,928 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GymTrack</title>
+<style>
+:root{
+  --ink:#1a1a2e; --paper:#fdfcf9; --accent:#ff5a36; --accent-dim:#ffd6c7;
+  --muted:#6b6b7b; --line:#e8e6df;
+  --space-1:8px; --space-2:16px; --space-3:24px; --space-4:40px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+#app{min-height:100vh;display:flex;flex-direction:column;}
+.screen{flex:1;display:flex;flex-direction:column;padding:var(--space-3);}
+.btn{appearance:none;border:none;border-radius:16px;padding:20px 24px;
+  font-size:20px;font-weight:700;min-height:64px;cursor:pointer;}
+.btn-primary{background:var(--ink);color:var(--paper);}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:2px solid var(--line);}
+.title-xl{font-size:36px;font-weight:800;line-height:1.1;margin:0 0 var(--space-2);}
+.label-muted{color:var(--muted);font-size:14px;text-transform:uppercase;letter-spacing:0.08em;}
+.timer-full{position:fixed;inset:0;background:var(--ink);color:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
+.timer-count{font-size:96px;font-weight:800;font-variant-numeric:tabular-nums;}
+/* Task 10: progress/chat/settings screens */
+.chat-msg{border-radius:12px;padding:10px 14px;margin-bottom:8px;max-width:85%;font-size:15px;}
+.chat-msg.user{background:var(--ink);color:var(--paper);margin-left:auto;}
+.chat-msg.ai{background:var(--accent-dim);color:var(--ink);margin-right:auto;}
+.wkcmp{display:flex;gap:8px;margin-bottom:16px;}
+.wkcrd{flex:1;background:var(--accent-dim);border-radius:12px;padding:12px;text-align:center;}
+.wklbl{font-size:12px;color:var(--muted);}
+.wkval{font-size:22px;font-weight:800;}
+.wkdelta{font-size:11px;color:var(--muted);}
+.wkdelta.up{color:#1a7a3a;}
+.wkdelta.dn{color:#c0392b;}
+.mgrow{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.mglbl{width:80px;font-size:13px;}
+.mgtrack{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden;}
+.mgfill{height:100%;background:var(--accent);}
+.mgfill.low{background:#c0392b;}
+.mgfill.mid{background:#e0a800;}
+.mgfill.high{background:#1a7a3a;}
+.mgval{font-size:12px;color:var(--muted);width:56px;text-align:right;}
+.liftcard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;}
+.liftrow{display:flex;align-items:center;gap:10px;}
+.liftnm{flex:1;}
+.liftnm .n{font-weight:700;font-size:14px;}
+.liftnm .s{font-size:11px;color:var(--muted);}
+.liftval{text-align:right;}
+.liftval .v{font-weight:800;font-size:16px;}
+.vbar-chart{margin-top:8px;}
+.vbar-row{display:flex;align-items:flex-end;height:100px;gap:3px;}
+.vbar-col{flex:1;display:flex;flex-direction:column-reverse;min-height:2px;}
+.vbar-seg{width:100%;}
+.vbar-labels{display:flex;gap:3px;}
+.vbar-lbl{flex:1;font-size:9px;color:var(--muted);text-align:center;}
+.vbar-legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);}
+.vbar-legend-item{display:flex;align-items:center;gap:4px;}
+.vbar-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+"use strict";
+
+var TIPS={};
+TIPS["Barbell Bench Press"]="Retract shoulder blades, feet flat. Bar touches lower chest. This is a strength lift, take the full rest.";
+TIPS["Weighted Pull-Up"]="Dead hang start. Pull elbows to hips, focus on lat engagement not arm pulling.";
+TIPS["Seated Cable Row"]="Chest up, pull to sternum, squeeze shoulder blades together at the finish.";
+TIPS["Cable Lateral Raise"]="Cable provides constant tension, superior to dumbbells for lateral delt development.";
+TIPS["Face Pulls"]="External rotation at end position. Non-negotiable for shoulder health.";
+TIPS["Barbell Back Squat"]="Chest up, knees track toes. Break parallel for full depth.";
+TIPS["Romanian Deadlift"]="Hip hinge, push hips back, feel the hamstring stretch. Bar stays close to legs.";
+TIPS["Walking Lunges"]="Long stride, knee barely touches floor. Upright torso throughout.";
+TIPS["Hanging Leg Raise"]="Dead hang, no swinging. Posterior pelvic tilt at top for full rectus abdominis contraction.";
+TIPS["Incline Dumbbell Press"]="Full range, touch chest at bottom. Stretched position maximises upper pec hypertrophy.";
+TIPS["Single-Arm DB Row"]="Let shoulder drop fully at bottom for full lat stretch.";
+TIPS["Dumbbell Shoulder Press"]="Neutral grip option available. Control the eccentric, 2 seconds down.";
+TIPS["Tricep Pushdown"]="Keep elbows pinned. Full extension at bottom, do not let them flare.";
+TIPS["Incline Dumbbell Curl"]="Incline stretches the long head. Slow eccentric, 3 seconds down.";
+TIPS["Cable Chest Fly"]="Low-to-high path for upper pec. Squeeze at midline, peak contraction matters.";
+TIPS["Hack Squat"]="Safer spine load than back squat for pure quad work. Full depth.";
+TIPS["Lying Leg Curl"]="Plantarflex (point toes) to increase hamstring activation. Slow eccentric.";
+TIPS["Hip Thrust"]="Best glute exercise by EMG activation. Squeeze hard at top.";
+TIPS["Standing Calf Raise"]="Straight leg targets gastrocnemius. Slow and full range, calves need high volume.";
+TIPS["Cable Crunch"]="Kneel at cable. Round spine fully, squeeze hard at bottom.";
+
+// NOTE: video IDs below are carried over from v9 (old app/gymtrack-v9.html) for exercises
+// that appeared there and were not on the README's placeholder list. Checked via WebFetch
+// against https://www.youtube.com/watch?v=<ID> during Task 2 Step 5 -- see
+// .superpowers/sdd/task-2-report.md for full results. Six IDs total were found to be wrong
+// or dead and have been replaced with verified live IDs (via YouTube's oEmbed endpoint,
+// confirmed during Task 2 and Task 11): Cable Lateral Raise, Lying Leg Curl (Task 2 fix),
+// and Face Pulls, Hanging Leg Raise, Standing Calf Raise, Cable Crunch (Task 11 fix --
+// these 4 returned genuine 404s from YouTube's oEmbed endpoint, i.e. were actually dead,
+// not merely unverifiable).
+var VIDEOS={};
+VIDEOS["Barbell Bench Press"]="BYKScL2sgCs";
+VIDEOS["Weighted Pull-Up"]="eGo4IYlbE5g";
+VIDEOS["Seated Cable Row"]="GZbfZ033f74";
+VIDEOS["Cable Lateral Raise"]="sGWL4zGA9nI";
+VIDEOS["Face Pulls"]="3pToT5_DUiY";
+VIDEOS["Barbell Back Squat"]="bEv6CCg2BC8";
+VIDEOS["Romanian Deadlift"]="JCXUYuzwNrM";
+VIDEOS["Walking Lunges"]="L8fvypPrzzs";
+VIDEOS["Hanging Leg Raise"]="Pr1ieGZ5atk";
+VIDEOS["Incline Dumbbell Press"]="8iPEnn-ltC8";
+VIDEOS["Single-Arm DB Row"]="pYcpY20QaE8";
+VIDEOS["Dumbbell Shoulder Press"]="qEwKCR5JCog";
+VIDEOS["Tricep Pushdown"]="2-LAMcpzODU";
+VIDEOS["Incline Dumbbell Curl"]="soxrZlIl35U";
+VIDEOS["Cable Chest Fly"]="Iwe6AmxVf7o";
+VIDEOS["Hack Squat"]="0tn5K9NlCfo";
+VIDEOS["Lying Leg Curl"]="SbSNUXPRkc8";
+VIDEOS["Hip Thrust"]="xDmFkJxPzeM";
+VIDEOS["Standing Calf Raise"]="97NbelB5yvQ";
+VIDEOS["Cable Crunch"]="wJxxROdW9CA";
+
+var WL={};
+WL["upperHeavy"]={label:"Upper - Heavy",mob:["Shoulder CARs - 5 reps each direction","Band pull-aparts - 2x15","Thoracic rotations - 8 per side"],ex:[
+  {n:"Barbell Bench Press",m:["Chest","Front Delts","Triceps"],sets:4,reps:"4-5",rir:2,rest:180,primary:true},
+  {n:"Weighted Pull-Up",m:["Lats","Biceps","Rear Delts"],sets:4,reps:"4-5",rir:2,rest:180,primary:true},
+  {n:"Seated Cable Row",m:["Lats","Mid Back","Biceps"],sets:3,reps:"8-10",rir:2,rest:90},
+  {n:"Cable Lateral Raise",m:["Lateral Delts"],sets:3,reps:"12-15",rir:2,rest:60},
+  {n:"Face Pulls",m:["Rear Delts","Rotator Cuff"],sets:3,reps:"12-15",rir:3,rest:60}
+]};
+WL["lowerHeavy"]={label:"Lower - Heavy",mob:["Hip CARs - 5 reps each direction per side","90/90 hip flow - 60s per side","Deep squat hold - 60s"],ex:[
+  {n:"Barbell Back Squat",m:["Quads","Glutes","Core"],sets:4,reps:"4-5",rir:2,rest:180,primary:true},
+  {n:"Romanian Deadlift",m:["Hamstrings","Glutes","Lower Back"],sets:3,reps:"4-5",rir:2,rest:180,primary:true},
+  {n:"Walking Lunges",m:["Quads","Glutes","Balance"],sets:3,reps:"8/leg",rir:2,rest:90},
+  {n:"Hanging Leg Raise",m:["Abs","Hip Flexors"],sets:3,reps:"10-15",rir:3,rest:60}
+]};
+WL["upperLight"]={label:"Upper - Light",mob:["Pec minor stretch - 60s","Shoulder pass-throughs - 10 reps","Scapular push-ups - 10 reps"],ex:[
+  {n:"Incline Dumbbell Press",m:["Upper Chest","Front Delts","Triceps"],sets:3,reps:"8-10",rir:2,rest:90,primary:true},
+  {n:"Single-Arm DB Row",m:["Lats","Mid Back","Biceps"],sets:3,reps:"8-10",rir:2,rest:90,primary:true},
+  {n:"Dumbbell Shoulder Press",m:["Shoulders","Triceps"],sets:3,reps:"10-12",rir:2,rest:90},
+  {n:"Tricep Pushdown",m:["Triceps"],sets:3,reps:"12-15",rir:2,rest:60},
+  {n:"Incline Dumbbell Curl",m:["Biceps Long Head"],sets:3,reps:"10-12",rir:2,rest:60},
+  {n:"Cable Chest Fly",m:["Chest"],sets:3,reps:"12-15",rir:2,rest:60}
+]};
+WL["lowerLight"]={label:"Lower - Light",mob:["Hip CARs - 5 reps each direction per side","Couch stretch - 60s per side","Adductor rock-back - 10 per side"],ex:[
+  {n:"Hack Squat",m:["Quads","Glutes"],sets:3,reps:"10-12",rir:2,rest:90,primary:true},
+  {n:"Lying Leg Curl",m:["Hamstrings"],sets:3,reps:"10-12",rir:2,rest:90,primary:true},
+  {n:"Hip Thrust",m:["Glutes","Hamstrings"],sets:3,reps:"10-12",rir:2,rest:90},
+  {n:"Standing Calf Raise",m:["Calves"],sets:3,reps:"12-15",rir:2,rest:60},
+  {n:"Cable Crunch",m:["Abs"],sets:3,reps:"12-15",rir:3,rest:60}
+]};
+WL["rest"]={label:"Rest and Recovery",mob:[],ex:[]};
+
+var DEFAULT_SCHED={Monday:"upperHeavy",Tuesday:"lowerHeavy",Wednesday:"rest",Thursday:"upperLight",Friday:"lowerLight",Saturday:"rest",Sunday:"rest"};
+var DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+var ST={};
+try{ST=JSON.parse(localStorage.getItem("gt10")||"{}");}catch(e){}
+if(!ST.sessions)ST.sessions={};
+if(!ST.bodylog)ST.bodylog=[];
+if(!ST.schedule)ST.schedule=JSON.parse(JSON.stringify(DEFAULT_SCHED));
+
+function save(){try{localStorage.setItem("gt10",JSON.stringify(ST));}catch(e){}}
+function todayName(){var WEEKDAY_NAMES=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];return WEEKDAY_NAMES[new Date().getDay()];}
+function dateStr(){return new Date().toISOString().split("T")[0];}
+function sessKey(d){return dateStr()+"_"+d;}
+
+function initSessionState(dayKey){
+  return { screen:"home", dayKey:dayKey, exIndex:0, setIndex:0, restRemaining:0, restTotal:0 };
+}
+
+function exerciseCount(dayKey){
+  return WL[dayKey].ex.length;
+}
+
+function advanceScreen(state, event){
+  var s = JSON.parse(JSON.stringify(state));
+  switch(event.type){
+    case "start":
+      s.screen = "mobility";
+      return s;
+    case "mobilityDone":
+      s.screen = "exercise";
+      s.exIndex = 0;
+      s.setIndex = 0;
+      return s;
+    case "setLogged":
+      s.screen = "rest-timer";
+      s.restTotal = event.restSeconds;
+      s.restRemaining = event.restSeconds;
+      s.setIndex = s.setIndex + 1;
+      return s;
+    case "timerTick":
+      s.restRemaining = Math.max(0, s.restRemaining - 1);
+      if (s.restRemaining === 0) s.screen = "exercise";
+      return s;
+    case "timerSkip":
+      s.restRemaining = 0;
+      s.screen = "exercise";
+      return s;
+    case "timerAdjust":
+      s.restRemaining = Math.max(0, s.restRemaining + event.deltaSeconds);
+      s.restTotal = Math.max(s.restTotal, s.restRemaining);
+      return s;
+    case "nextExercise":
+      if (s.exIndex >= exerciseCount(s.dayKey) - 1) {
+        s.screen = "finish";
+      } else {
+        s.exIndex = s.exIndex + 1;
+        s.setIndex = 0;
+        s.screen = "exercise";
+      }
+      return s;
+    default:
+      return s;
+  }
+}
+
+var appState = null;
+var curSession = null;
+
+function render(){
+  var app = document.getElementById("app");
+  if (!appState) { app.innerHTML = renderHome(); return; }
+  switch(appState.screen){
+    case "home": app.innerHTML = renderHome(); break;
+    case "mobility": app.innerHTML = renderMobility(); break;
+    case "exercise": app.innerHTML = renderExercise(); break;
+    case "rest-timer": app.innerHTML = renderExercise() + renderRestTimer(); break;
+    case "finish": app.innerHTML = renderFinish(); break;
+    case "progress": app.innerHTML = renderProgress(); break;
+    case "chat": app.innerHTML = renderChat(); break;
+    case "settings": app.innerHTML = renderSettings(); break;
+    default: app.innerHTML = renderHome();
+  }
+}
+
+function dispatch(event){
+  appState = advanceScreen(appState, event);
+  render();
+}
+
+function renderHome(){
+  var day = todayName();
+  var dayKey = ST.schedule && ST.schedule[day] || DEFAULT_SCHED[day];
+  var w = WL[dayKey];
+  var isRest = dayKey === "rest";
+  return '<div class="screen">' +
+    '<div class="label-muted">' + day + '</div>' +
+    '<h1 class="title-xl">' + w.label + '</h1>' +
+    (isRest ? '<p>Enjoy the rest day.</p>' :
+      '<button class="btn btn-accent" onclick="startToday()">Start</button>') +
+    '<div style="margin-top:auto;display:flex;gap:8px;">' +
+      '<button class="btn btn-ghost" onclick="goProgress()">Progress</button>' +
+      '<button class="btn btn-ghost" onclick="goSettings()">Settings</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function startToday(){
+  var day = todayName();
+  var dayKey = ST.schedule && ST.schedule[day] || DEFAULT_SCHED[day];
+  appState = initSessionState(dayKey);
+  curSession = { day: day, dayKey: dayKey, key: sessKey(day), log: [] };
+  dispatch({type:"start"});
+}
+
+function goProgress(){ appState = { screen: "progress" }; render(); }
+function goSettings(){ appState = { screen: "settings" }; render(); }
+function renderMobility(){
+  var mob = WL[curSession.dayKey].mob;
+  var items = mob.map(function(m){ return '<li>' + m + '</li>'; }).join("");
+  return '<div class="screen">' +
+    '<div class="label-muted">Mobility</div>' +
+    '<h1 class="title-xl">Warm up first</h1>' +
+    '<ul style="font-size:18px;line-height:1.8;">' + items + '</ul>' +
+    '<button class="btn btn-primary" style="margin-top:auto;" onclick="dispatch({type:\'mobilityDone\'})">Done, let\'s lift</button>' +
+  '</div>';
+}
+function currentExercise(){
+  return WL[curSession.dayKey].ex[appState.exIndex];
+}
+
+function renderExercise(){
+  var ex = currentExercise();
+  var doneSets = curSession.log.filter(function(l){ return l.ex === ex.n; });
+  var doneList = doneSets.map(function(l){
+    return '<div>Set ' + l.setNum + ': ' + l.w + ' x ' + l.r + '</div>';
+  }).join("");
+  return '<div class="screen">' +
+    '<div class="label-muted">Exercise ' + (appState.exIndex + 1) + ' of ' + WL[curSession.dayKey].ex.length + '</div>' +
+    '<h1 class="title-xl">' + ex.n + '</h1>' +
+    '<p>' + ex.sets + ' sets &times; ' + ex.reps + ' reps &middot; RIR ' + ex.rir + '</p>' +
+    '<p class="label-muted">' + TIPS[ex.n] + '</p>' +
+    (VIDEOS[ex.n] ? '<a class="btn-ghost" style="display:inline-block;text-decoration:none;padding:8px 0;font-size:14px;" href="https://www.youtube.com/watch?v=' + VIDEOS[ex.n] + '" target="_blank" rel="noopener">Watch form demo</a>' : '') +
+    '<div>' + doneList + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;">' +
+      '<input id="setW" type="number" inputmode="decimal" placeholder="Weight" style="flex:1;font-size:20px;padding:16px;">' +
+      '<input id="setR" type="number" inputmode="numeric" placeholder="Reps" style="flex:1;font-size:20px;padding:16px;">' +
+    '</div>' +
+    '<button class="btn btn-accent" onclick="logSet()">Log set</button>' +
+    '<button class="btn btn-ghost" style="margin-top:auto;" onclick="nextExercise()">Next Exercise</button>' +
+  '</div>';
+}
+
+function logSet(){
+  var ex = currentExercise();
+  var w = document.getElementById("setW").value;
+  var r = document.getElementById("setR").value;
+  if (!w || !r) return;
+  var doneSets = curSession.log.filter(function(l){ return l.ex === ex.n; });
+  curSession.log.push({ ex: ex.n, w: w, r: r, setNum: doneSets.length + 1 });
+  dispatch({ type: "setLogged", restSeconds: ex.rest });
+}
+
+function nextExercise(){
+  dispatch({ type: "nextExercise" });
+}
+var restIntervalId = null;
+
+function renderRestTimer(){
+  var m = Math.floor(appState.restRemaining / 60);
+  var sec = appState.restRemaining % 60;
+  var display = m + ":" + (sec < 10 ? "0" : "") + sec;
+  ensureRestTicking();
+  return '<div class="timer-full">' +
+    '<div class="label-muted">Rest</div>' +
+    '<div class="timer-count">' + display + '</div>' +
+    '<div style="display:flex;gap:16px;margin-top:32px;">' +
+      '<button class="btn btn-ghost" onclick="adjustRest(-15)">-15s</button>' +
+      '<button class="btn btn-ghost" onclick="adjustRest(15)">+15s</button>' +
+    '</div>' +
+    '<button class="btn btn-accent" style="margin-top:24px;" onclick="skipRest()">Skip</button>' +
+  '</div>';
+}
+
+function ensureRestTicking(){
+  if (restIntervalId) return;
+  restIntervalId = setInterval(function(){
+    if (!appState || appState.screen !== "rest-timer") {
+      clearInterval(restIntervalId);
+      restIntervalId = null;
+      return;
+    }
+    dispatch({ type: "timerTick" });
+    if (appState.screen !== "rest-timer") {
+      clearInterval(restIntervalId);
+      restIntervalId = null;
+      playBeep(880, 0.3);
+    }
+  }, 1000);
+}
+
+function adjustRest(delta){
+  dispatch({ type: "timerAdjust", deltaSeconds: delta });
+}
+
+function skipRest(){
+  clearInterval(restIntervalId);
+  restIntervalId = null;
+  dispatch({ type: "timerSkip" });
+}
+
+function playBeep(f, d){
+  try{
+    if (!window._actx) window._actx = new (window.AudioContext || window.webkitAudioContext)();
+    var c = window._actx, o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination); o.type = "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.3, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + d);
+    o.start(c.currentTime); o.stop(c.currentTime + d);
+  }catch(e){}
+}
+function epley1RM(w, r){
+  w = parseFloat(w) || 0; r = parseInt(r) || 0;
+  if (!w || !r) return 0;
+  return w * (1 + r / 30);
+}
+
+function sessionSummary(log){
+  var totalVolume = 0, best = null;
+  log.forEach(function(l){
+    var vol = (parseFloat(l.w) || 0) * (parseInt(l.r) || 0);
+    totalVolume += vol;
+    if (!best || vol > (parseFloat(best.w) || 0) * (parseInt(best.r) || 0)) best = l;
+  });
+  return { totalVolume: totalVolume, setCount: log.length, best: best };
+}
+
+function renderFinish(){
+  var summary = sessionSummary(curSession.log);
+  save();
+  return '<div class="screen">' +
+    '<h1 class="title-xl">Session complete</h1>' +
+    '<p>' + summary.setCount + ' sets logged &middot; ' + summary.totalVolume + ' total volume</p>' +
+    (summary.best ? '<p>Top set: ' + summary.best.ex + ' ' + summary.best.w + ' x ' + summary.best.r + '</p>' : '') +
+    '<button class="btn btn-primary" onclick="finishSession()">Done</button>' +
+  '</div>';
+}
+
+function finishSession(){
+  if (!ST.sessions) ST.sessions = {};
+  ST.sessions[curSession.key] = curSession;
+  save();
+  syncSheets(curSession);
+  appState = null;
+  curSession = null;
+  render();
+}
+
+// ---------------------------------------------------------------------------
+// Task 10: Progress analytics, AI coaching chat, Settings, Sheets sync.
+// Copied from old app/gymtrack-v9.html and re-pointed at v10's data shapes.
+//
+// IMPORTANT ADAPTATION: v9 sessions were {exercises:[{name, sets:[{w,r,done}]}]}.
+// v10 sessions (built in startToday/logSet/finishSession above) are actually
+// {day, dayKey, key, log:[{ex,w,r,setNum}]} -- a FLAT log, not nested
+// exercises/sets. The task-10 brief assumed the exercises/sets shape carried
+// over unchanged ("ST.sessions ... keep the same field names as v9: n, m, w, r")
+// but that is only true of WL[key].ex (exercise defs); session storage itself
+// is a different, flatter shape in v10. Every function below iterates
+// `s.log` instead of `s.exercises`/`e.sets`, and callers who read s.type/
+// s.rpe/s.notes derive them from s.dayKey (typeOf) or fall back to null/""
+// since v10 sessions don't record those fields at all.
+// ---------------------------------------------------------------------------
+
+var chatHistory = [];
+function toast(msg){ try{ console.log("[toast]", msg); }catch(e){} }
+function getApiUrl(){ return ST.apiUrl || ""; }
+
+// Derives a coarse workout type ("upper"/"lower"/"rest") from a WL day key,
+// since v10 sessions don't store a `type` field the way v9 did.
+function typeOf(dayKey){
+  if (!dayKey) return "rest";
+  if (dayKey.indexOf("upper") === 0) return "upper";
+  if (dayKey.indexOf("lower") === 0) return "lower";
+  return "rest";
+}
+
+// --- AI coaching (verbatim from old app/gymtrack-v9.html:466-522) ---------
+
+function callClaude(system,userPrompt,callback){
+  var url=getApiUrl();
+  if(!url){callback(null,"API URL not configured. Go to Settings to add your Netlify proxy URL.");return;}
+  fetchWithRetry(url,{system:system,message:userPrompt},callback);
+}
+
+function callClaudeChat(system,messages,callback){
+  var url=getApiUrl();
+  if(!url){callback(null,"API URL not configured. Go to Settings.");return;}
+  fetchWithRetry(url,{system:system,messages:messages},callback);
+}
+
+// v9: One silent auto-retry with 30s timeout. User just waits slightly longer on transient failures.
+function fetchWithRetry(url,body,callback){
+  _doFetch(url,body,function(res,err){
+    if(err){
+      // Retry once on network/timeout failures
+      setTimeout(function(){
+        _doFetch(url,body,function(res2,err2){
+          if(err2)callback(null,err2);
+          else callback(res2,null);
+        });
+      },600);
+    }else{
+      callback(res,null);
+    }
+  });
+}
+
+function _doFetch(url,body,callback){
+  var controller=new AbortController();
+  var timeoutId=setTimeout(function(){controller.abort();},30000);
+  fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal})
+    .then(function(r){clearTimeout(timeoutId);return r.json();})
+    .then(function(d){if(d.error)callback(null,d.error);else callback(d.content||d.text||"",null);})
+    .catch(function(e){
+      clearTimeout(timeoutId);
+      if(e.name==="AbortError")callback(null,"Timed out");
+      else callback(null,"Connection failed: "+e.message);
+    });
+}
+
+// v9: Robust JSON extraction. Strips code fences, finds first { and last }, parses that slice.
+// Returns null on any failure instead of throwing, so callers can show a clean retry UI.
+function extractJSON(text){
+  if(!text)return null;
+  // Strip markdown code fences
+  var cleaned=text.replace(/```json|```/g,"").trim();
+  // Fast path: try parsing as-is
+  try{return JSON.parse(cleaned);}catch(e){}
+  // Bracket-match fallback: find first { and last }
+  var first=cleaned.indexOf("{");
+  var last=cleaned.lastIndexOf("}");
+  if(first<0||last<0||last<=first)return null;
+  var slice=cleaned.substring(first,last+1);
+  try{return JSON.parse(slice);}catch(e){return null;}
+}
+
+// Adapted from old app/gymtrack-v9.html:524-535. v9 iterated
+// (s.exercises||[]).forEach(e=>(e.sets||[]) ...); v10 sessions store a flat
+// s.log=[{ex,w,r,setNum}] instead, so this iterates s.log directly via
+// sessionAggregates(). type/rpe/notes derived since v10 doesn't store them.
+function buildWeekContext(){
+  var ago=new Date();ago.setDate(ago.getDate()-7);
+  var recent=[];
+  Object.keys(ST.sessions).sort(function(a,b){return b.localeCompare(a);}).forEach(function(k){
+    if(new Date(k.split("_")[0])<ago)return;
+    var s=ST.sessions[k];
+    var a=sessionAggregates(s);
+    recent.push({date:k.split("_")[0],day:s.day,type:typeOf(s.dayKey),volume:Math.round(a.volume),sets:a.setCount,rpe:null,notes:""});
+  });
+  return recent;
+}
+
+// Adapted from old app/gymtrack-v9.html:537-553. Lift list re-pointed at
+// v10's actual primary lifts (v9's list included "Barbell Overhead Press" and
+// "Pendlay Row" which don't exist in v10's WL program; v10 uses "Dumbbell
+// Shoulder Press" and "Single-Arm DB Row"/"Seated Cable Row" instead).
+function buildProgressContext(){
+  var lifts=["Barbell Bench Press","Weighted Pull-Up","Barbell Back Squat","Romanian Deadlift","Incline Dumbbell Press","Single-Arm DB Row","Hack Squat","Lying Leg Curl"];
+  var progress={};
+  lifts.forEach(function(lift){
+    var history=[];
+    Object.keys(ST.sessions).sort().forEach(function(k){
+      var s=ST.sessions[k];
+      var best=null;
+      (s.log||[]).forEach(function(l){
+        if(l.ex!==lift||!l.w||!l.r)return;
+        var v=parseFloat(l.w)*parseInt(l.r);
+        if(!best||v>best.vol)best={w:parseFloat(l.w),r:parseInt(l.r),vol:v};
+      });
+      if(best)history.push({date:k.split("_")[0],w:best.w,r:best.r});
+    });
+    if(history.length)progress[lift]=history.slice(-6);
+  });
+  return progress;
+}
+
+// Adapted from old app/gymtrack-v9.html:555-564 (see buildWeekContext note re: s.log/type/rpe).
+function buildDeloadContext(){
+  var sessions=[];
+  Object.keys(ST.sessions).sort(function(a,b){return b.localeCompare(a);}).slice(0,14).forEach(function(k){
+    var s=ST.sessions[k];
+    if(!s.log||!s.log.length)return;
+    var a=sessionAggregates(s);
+    sessions.push({date:k.split("_")[0],type:typeOf(s.dayKey),volume:Math.round(a.volume),rpe:null});
+  });
+  return sessions;
+}
+
+function loadingHTML(msg){return '<div class="ai-loading"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>'+(msg?'<span>'+msg+'</span>':"")+'</div>';}
+
+// --- Progress analytics (adapted from old app/gymtrack-v9.html:1056-1283) -
+
+// Helper: Monday-anchored ISO week key "YYYY-Www" (verbatim, v9:1056-1064)
+function weekKeyOf(dateStr){
+  var d=new Date(dateStr+"T00:00:00");
+  var day=d.getDay(); // 0=Sun..6=Sat
+  var diff=(day===0?-6:1-day);
+  d.setDate(d.getDate()+diff);
+  var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();
+  return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+}
+
+// Adapted from old app/gymtrack-v9.html:1067-1071. v9 walked
+// s.exercises[].sets[] filtering st.done; v10's s.log only ever contains
+// sets that were actually logged (no undone placeholders), so this walks
+// s.log directly with a w/r sanity check standing in for st.done.
+function sessionAggregates(s){
+  var vol=0,top=0,sets=0;
+  (s.log||[]).forEach(function(l){
+    var w=parseFloat(l.w)||0,r=parseInt(l.r)||0;
+    if(!w||!r)return;
+    vol+=w*r;if(w>top)top=w;sets++;
+  });
+  return {volume:vol,topSetKg:top,setCount:sets};
+}
+
+// Helper: aggregate sessions for a date range [fromIso, toIso] inclusive (verbatim, v9:1077-1088)
+function aggregateRange(fromIso,toIso){
+  var out={volume:0,topSetKg:0,sessionCount:0};
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];if(dt<fromIso||dt>toIso)return;
+    var s=ST.sessions[k];var a=sessionAggregates(s);
+    if(a.setCount===0)return;
+    out.volume+=a.volume;
+    if(a.topSetKg>out.topSetKg)out.topSetKg=a.topSetKg;
+    out.sessionCount++;
+  });
+  return out;
+}
+
+// Section 1: week vs last week strip. Adapted from v9:1091-1117 to return
+// the HTML string instead of assigning to document.getElementById("weekCompare").
+function renderWeekCompare(){
+  var today=new Date();
+  var fmt=function(d){var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;};
+  var thisEnd=new Date(today);
+  var thisStart=new Date(today);thisStart.setDate(thisStart.getDate()-6);
+  var lastEnd=new Date(thisStart);lastEnd.setDate(lastEnd.getDate()-1);
+  var lastStart=new Date(lastEnd);lastStart.setDate(lastStart.getDate()-6);
+  var T=aggregateRange(fmt(thisStart),fmt(thisEnd));
+  var L=aggregateRange(fmt(lastStart),fmt(lastEnd));
+  function delta(cur,prev){
+    if(prev===0&&cur===0)return '<div class="wkdelta flat">no data</div>';
+    if(prev===0)return '<div class="wkdelta up">new</div>';
+    var pct=Math.round(((cur-prev)/prev)*100);
+    if(pct===0)return '<div class="wkdelta flat">same as last wk</div>';
+    var cls=pct>0?"up":"dn";var arrow=pct>0?"▲":"▼";
+    return '<div class="wkdelta '+cls+'">'+arrow+' '+Math.abs(pct)+'% vs last wk</div>';
+  }
+  var volTxt=T.volume>=1000?(T.volume/1000).toFixed(1)+"t":Math.round(T.volume)+"kg";
+  var topTxt=T.topSetKg>0?Math.round(T.topSetKg)+"kg":"–";
+  return '<div class="wkcmp">'
+    +'<div class="wkcrd"><div class="wklbl">Sessions</div><div class="wkval">'+T.sessionCount+'</div>'+delta(T.sessionCount,L.sessionCount)+'</div>'
+    +'<div class="wkcrd"><div class="wklbl">Volume</div><div class="wkval">'+volTxt+'</div>'+delta(T.volume,L.volume)+'</div>'
+    +'<div class="wkcrd"><div class="wklbl">Top set</div><div class="wkval">'+topTxt+'</div>'+delta(T.topSetKg,L.topSetKg)+'</div>'
+    +'</div>';
+}
+
+// Section 2: muscle group balance (sets per muscle, last 28 days). Groups
+// come verbatim from v9:1121-1131. Adapted from v9:1132-1162: v9 looked up
+// the exercise def via exDef(s.day, e.name) (which resolved ST.schedule[day]
+// -> WL); v10 doesn't need that indirection since a stored session already
+// carries its own s.dayKey (stable even if the schedule is edited later), so
+// this looks the def up directly in WL[s.dayKey].ex. Also iterates s.log
+// (one entry per completed set) instead of exercises[].sets[].
+var MUSCLE_GROUPS={
+  "Chest":["Chest","Upper Chest"],
+  "Back":["Lats","Mid Back","Traps","Lower Back"],
+  "Shoulders":["Shoulders","Front Delts","Lateral Delts","Rear Delts","Rotator Cuff"],
+  "Arms":["Biceps","Biceps Long Head","Brachialis","Triceps","Triceps Long Head"],
+  "Quads":["Quads"],
+  "Hamstrings":["Hamstrings"],
+  "Glutes":["Glutes"],
+  "Calves":["Calves","Soleus"],
+  "Core":["Core","Abs","TVA","Rectus Abdominis","Hip Flexors","Balance"]
+};
+function renderMuscleBalance(){
+  var today=new Date();var cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-27);
+  var fmt=function(d){var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();return y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;};
+  var cutIso=fmt(cutoff);
+  var counts={};Object.keys(MUSCLE_GROUPS).forEach(function(g){counts[g]=0;});
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];if(dt<cutIso)return;
+    var s=ST.sessions[k];
+    var w=WL[s.dayKey];
+    (s.log||[]).forEach(function(l){
+      if(!l.w||!l.r)return;
+      var def=w&&w.ex.filter(function(e){return e.n===l.ex;})[0];
+      var muscles=def?def.m:[];
+      muscles.forEach(function(m){
+        Object.keys(MUSCLE_GROUPS).forEach(function(g){
+          if(MUSCLE_GROUPS[g].indexOf(m)>=0)counts[g]+=1;
+        });
+      });
+    });
+  });
+  var max=Math.max.apply(null,Object.keys(counts).map(function(g){return counts[g];}));
+  if(max===0)return '<div style="color:var(--muted);font-size:13px;padding:0 16px">No data in the last 28 days.</div>';
+  var h="";
+  Object.keys(counts).forEach(function(g){
+    var c=counts[g];var pct=Math.round(c/max*100);
+    var cls=c<20?"low":(c<40?"mid":"high");
+    h+='<div class="mgrow"><span class="mglbl">'+g+'</span><div class="mgtrack"><div class="mgfill '+cls+'" style="width:'+pct+'%"></div></div><span class="mgval">'+c+' set'+(c===1?'':'s')+'</span></div>';
+  });
+  return h;
+}
+
+// Section 3: strength progression cards. Lift list adapted for v10's actual
+// primary lifts (see buildProgressContext note). buildLiftHistory adapted
+// from v9:1168-1181 to iterate s.log instead of exercises[].sets[].
+// epley1RM already exists from Task 9 -- not duplicated here.
+var PROG_LIFTS=["Barbell Bench Press","Weighted Pull-Up","Barbell Back Squat","Romanian Deadlift","Incline Dumbbell Press","Single-Arm DB Row","Hack Squat","Lying Leg Curl"];
+var liftCardOpen={};
+
+function buildLiftHistory(lift){
+  var rows=[];
+  Object.keys(ST.sessions).sort().forEach(function(k){
+    var s=ST.sessions[k];
+    var best=null;
+    (s.log||[]).forEach(function(l){
+      if(l.ex!==lift||!l.w||!l.r)return;
+      var est=epley1RM(l.w,l.r);
+      if(!best||est>best.est)best={est:est,w:parseFloat(l.w),r:parseInt(l.r)};
+    });
+    if(best)rows.push({date:k.split("_")[0],top1RM:best.est,topW:best.w,topR:best.r});
+  });
+  return rows;
+}
+
+function renderLiftCards(){
+  var h="";
+  PROG_LIFTS.forEach(function(lift,idx){
+    var hist=buildLiftHistory(lift);
+    if(!hist.length)return;
+    var cur=hist[hist.length-1];
+    var curRM=Math.round(cur.top1RM);
+    var today=new Date();var cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-30);
+    var y=cutoff.getFullYear(),m=cutoff.getMonth()+1,dd=cutoff.getDate();
+    var cutIso=y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+    var old=null;for(var i=hist.length-1;i>=0;i--){if(hist[i].date<=cutIso){old=hist[i];break;}}
+    var deltaHtml="";
+    if(old){
+      var diff=Math.round(cur.top1RM-old.top1RM);
+      if(diff>0)deltaHtml='<div class="d" style="color:green">+'+diff+'kg (30d)</div>';
+      else if(diff<0)deltaHtml='<div class="d" style="color:red">'+diff+'kg (30d)</div>';
+      else deltaHtml='<div class="d" style="color:var(--muted)">flat (30d)</div>';
+    }else{
+      deltaHtml='<div class="d" style="color:var(--muted)">'+hist.length+' session'+(hist.length===1?"":"s")+'</div>';
+    }
+    var sp=hist.slice(-8).map(function(p){return p.top1RM;});
+    var spMin=Math.min.apply(null,sp),spMax=Math.max.apply(null,sp);
+    var sW=80,sH=24;
+    var pts=sp.map(function(v,i){var x=(sp.length>1?i/(sp.length-1)*sW:sW/2);var yv=spMax===spMin?sH/2:(1-(v-spMin)/(spMax-spMin))*sH;return x.toFixed(1)+","+yv.toFixed(1);}).join(" ");
+    var spark='<svg width="'+sW+'" height="'+sH+'" style="flex-shrink:0"><polyline points="'+pts+'" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    var openCls=liftCardOpen[idx]?" open":"";
+    h+='<div class="liftcard'+openCls+'" onclick="toggleLiftCard('+idx+')">';
+    h+='<div class="liftrow"><div class="liftnm"><div class="n">'+lift+'</div><div class="s">Top: '+cur.topW+'kg × '+cur.topR+'</div></div>';
+    h+=spark;
+    h+='<div class="liftval"><div class="v">'+curRM+'kg</div>'+deltaHtml+'</div></div>';
+    if(liftCardOpen[idx]){
+      var vals=hist.map(function(p){return p.top1RM;});
+      var vMin=Math.min.apply(null,vals),vMax=Math.max.apply(null,vals);
+      var cW=296,cH=100,pad=8;
+      var cpts=vals.map(function(v,i){var x=pad+(vals.length>1?i/(vals.length-1)*(cW-pad*2):(cW-pad*2)/2);var yv=vMax===vMin?cH/2:pad+(1-(v-vMin)/(vMax-vMin))*(cH-pad*2);return x.toFixed(1)+","+yv.toFixed(1);}).join(" ");
+      var full='<svg width="'+cW+'" height="'+cH+'" viewBox="0 0 '+cW+' '+cH+'" style="display:block;margin:10px auto"><polyline points="'+cpts+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>';
+      vals.forEach(function(v,i){var x=pad+(vals.length>1?i/(vals.length-1)*(cW-pad*2):(cW-pad*2)/2);var yv=vMax===vMin?cH/2:pad+(1-(v-vMin)/(vMax-vMin))*(cH-pad*2);full+='<circle cx="'+x.toFixed(1)+'" cy="'+yv.toFixed(1)+'" r="3" fill="var(--accent)"/>';});
+      full+='</svg>';
+      h+='<div class="liftchart"><div style="font-size:11px;color:var(--muted);margin-top:8px">Estimated 1RM over '+vals.length+' sessions · '+Math.round(vMin)+'–'+Math.round(vMax)+'kg</div>'+full+'</div>';
+    }
+    h+='</div>';
+  });
+  if(!h)h='<div style="color:var(--muted);font-size:13px;padding:0 16px">No strength data yet. Log a few sessions first.</div>';
+  return h;
+}
+
+function toggleLiftCard(idx){liftCardOpen[idx]=!liftCardOpen[idx];render();}
+
+// Section 4: volume trend, stacked by workout type. Adapted from
+// v9:1235-1276: v9's program had upper/lower/push/pull/legs types; v10's
+// WL only produces "upper"/"lower"/"rest" (see typeOf), so TYPE_COLORS is
+// trimmed accordingly and s.type is derived via typeOf(s.dayKey) since v10
+// sessions don't store a `type` field.
+var TYPE_COLORS={upper:"#fcd34d",lower:"#fca5a5"};
+function renderVolumeTrend(){
+  var today=new Date();
+  var mondays=[];for(var i=11;i>=0;i--){var d=new Date(today);var day=d.getDay();var diff=(day===0?-6:1-day)-7*i;d.setDate(d.getDate()+diff);var y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();mondays.push(y+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd);}
+  var weeks=mondays.map(function(mk){return {mk:mk,byType:{upper:0,lower:0},total:0};});
+  Object.keys(ST.sessions).forEach(function(k){
+    var dt=k.split("_")[0];var wk=weekKeyOf(dt);
+    var target=null;for(var i=0;i<weeks.length;i++){if(weeks[i].mk===wk){target=weeks[i];break;}}
+    if(!target)return;
+    var s=ST.sessions[k];var a=sessionAggregates(s);
+    if(a.setCount===0)return;
+    var t=typeOf(s.dayKey);if(!target.byType.hasOwnProperty(t))return;
+    target.byType[t]+=a.volume;target.total+=a.volume;
+  });
+  var maxTotal=Math.max.apply(null,weeks.map(function(w){return w.total;}));
+  if(maxTotal===0)return '<div style="color:var(--muted);font-size:13px;padding:0 16px">No volume data in the last 12 weeks.</div>';
+  var h='<div class="vbar-chart"><div class="vbar-row">';
+  weeks.forEach(function(w){
+    var heightPct=Math.round(w.total/maxTotal*100);
+    h+='<div class="vbar-col" style="height:'+heightPct+'%">';
+    Object.keys(w.byType).forEach(function(t){
+      if(w.byType[t]===0)return;
+      var segPct=Math.round(w.byType[t]/w.total*100);
+      h+='<div class="vbar-seg" style="background:'+TYPE_COLORS[t]+';height:'+segPct+'%"></div>';
+    });
+    h+='</div>';
+  });
+  h+='</div><div class="vbar-labels">';
+  weeks.forEach(function(w,i){
+    var lbl=(i%2===0)?w.mk.slice(5):"";
+    h+='<div class="vbar-lbl">'+lbl+'</div>';
+  });
+  h+='</div><div class="vbar-legend">';
+  Object.keys(TYPE_COLORS).forEach(function(t){
+    h+='<div class="vbar-legend-item"><span class="vbar-swatch" style="background:'+TYPE_COLORS[t]+'"></span>'+t.charAt(0).toUpperCase()+t.slice(1)+'</div>';
+  });
+  h+='</div></div>';
+  return h;
+}
+
+function renderProgress(){
+  return '<div class="screen">' +
+    '<button class="btn btn-ghost" onclick="goHome()">Back</button>' +
+    '<h1 class="title-xl">Progress</h1>' +
+    renderWeekCompare() +
+    '<div class="label-muted" style="margin-top:16px">Muscle group balance · last 28 days</div>' + renderMuscleBalance() +
+    '<div class="label-muted" style="margin-top:16px">Strength progression</div>' + renderLiftCards() +
+    '<div class="label-muted" style="margin-top:16px">Volume · last 12 weeks</div>' + renderVolumeTrend() +
+    '<button class="btn btn-ghost" style="margin-top:16px" onclick="goChat()">Ask coach</button>' +
+  '</div>';
+}
+function goHome(){ appState = null; curSession = null; render(); }
+function goChat(){ appState = { screen: "chat" }; render(); }
+
+// --- Chat (adapted from old app/gymtrack-v9.html:676-711) -----------------
+// v9's renderChat/sendChat manipulated a persistent modal's DOM directly
+// (document.getElementById("chatMsgs").innerHTML=...). v10 has no persistent
+// chat modal -- render() rebuilds the whole screen from scratch each time --
+// so renderChat() now returns a full-screen HTML string and sendChat() calls
+// render() instead of poking the DOM.
+function renderChat(){
+  var h='<div class="screen">' +
+    '<button class="btn btn-ghost" onclick="goProgress()">Back</button>' +
+    '<h1 class="title-xl">Coach chat</h1>';
+  if(!chatHistory.length)chatHistory=[{role:"assistant",content:"Hi! I am your AI coach. Ask me anything about form, recovery, programming, or today's session."}];
+  h+='<div id="chatMsgs" style="flex:1;overflow-y:auto;margin:8px 0;">';
+  chatHistory.forEach(function(m){h+='<div class="chat-msg '+(m.role==="user"?"user":"ai")+'">'+m.content+'</div>';});
+  h+='</div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<input id="chatInput" type="text" placeholder="Ask your coach" style="flex:1;font-size:16px;padding:12px;">' +
+      '<button class="btn btn-accent" onclick="sendChat()">Send</button>' +
+    '</div>' +
+  '</div>';
+  return h;
+}
+
+function sendChat(){
+  var input=document.getElementById("chatInput");
+  var msg=input.value.trim();if(!msg)return;
+  input.value="";
+  chatHistory.push({role:"user",content:msg});
+  render();
+  var weekData=buildWeekContext();
+  var day=todayName();
+  var dayKey=(ST.schedule&&ST.schedule[day])||DEFAULT_SCHED[day];
+  var system="You are an elite strength and conditioning coach in a gym app. Be concise, direct, actionable. Today: "+day+" ("+dayKey+").\nRecent week: "+JSON.stringify(weekData)+".";
+  var msgs=chatHistory.slice(-10);
+  callClaudeChat(system,msgs,function(res,err){
+    chatHistory.push({role:"assistant",content:err?"Sorry, could not connect right now.":res});
+    if(appState&&appState.screen==="chat")render();
+  });
+}
+
+// --- Settings (adapted from old app/gymtrack-v9.html:1323-1332) -----------
+// v9's renderSettings() assigned into static input elements
+// (document.getElementById("ssUrl").value=...) that lived permanently in the
+// DOM. v10 has no persistent settings form, so renderSettings() returns a
+// full-screen string with the current ST.apiUrl/ST.sheetsUrl baked into the
+// input `value` attributes, and the save/clear handlers call render() after
+// mutating ST instead of updating individual elements.
+function renderSettings(){
+  return '<div class="screen">' +
+    '<button class="btn btn-ghost" onclick="goHome()">Back</button>' +
+    '<h1 class="title-xl">Settings</h1>' +
+    '<div class="label-muted">AI Coach API URL</div>' +
+    '<input id="apiUrlInput" type="text" value="'+(ST.apiUrl||"")+'" style="font-size:16px;padding:12px;margin:8px 0;">' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+      '<button class="btn btn-ghost" onclick="saveApiUrl()">Save</button>' +
+      '<button class="btn btn-ghost" onclick="clearApiUrl()">Disconnect</button>' +
+    '</div>' +
+    '<div class="label-muted">'+(ST.apiUrl?"AI Coach connected":"AI Coach not connected")+'</div>' +
+    '<div class="label-muted" style="margin-top:24px">Google Sheets URL</div>' +
+    '<input id="sheetsUrlInput" type="text" value="'+(ST.sheetsUrl||"")+'" style="font-size:16px;padding:12px;margin:8px 0;">' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+      '<button class="btn btn-ghost" onclick="saveSheets()">Save</button>' +
+      '<button class="btn btn-ghost" onclick="clearSheets()">Disconnect</button>' +
+    '</div>' +
+    '<div class="label-muted">'+(ST.sheetsUrl?"Connected to Google Sheets":"Not connected")+'</div>' +
+  '</div>';
+}
+function saveApiUrl(){var u=document.getElementById("apiUrlInput").value.trim();if(!u){toast("Enter a URL first");return;}ST.apiUrl=u;save();render();toast("API URL saved!");}
+function clearApiUrl(){delete ST.apiUrl;save();render();toast("AI Coach disconnected");}
+function saveSheets(){var u=document.getElementById("sheetsUrlInput").value.trim();if(!u){toast("Enter a URL first");return;}ST.sheetsUrl=u;save();render();toast("Sheets URL saved!");}
+function clearSheets(){delete ST.sheetsUrl;save();render();toast("Disconnected");}
+
+// --- Sheets sync (adapted from old app/gymtrack-v9.html:1044-1050) --------
+// v9 iterated (sess.exercises||[]).forEach(ex=>(ex.sets||[]).forEach(...));
+// v10 sessions store a flat sess.log=[{ex,w,r,setNum}], so this iterates
+// sess.log directly. v9's syncSheets was MISSING the
+// `if(!ST.sheetsUrl)return;` guard that syncBWToSheets already had (a real
+// bug in v9, silently calling fetch(undefined,...) when no Sheets URL is
+// configured) -- the guard is added here per the brief's Step 5 instruction
+// to verify/add it.
+function syncSheets(sess){
+  if(!ST.sheetsUrl)return;
+  var rows=[],dt=dateStr();
+  (sess.log||[]).forEach(function(l){
+    rows.push({date:dt,day:sess.day,exercise:l.ex,set:l.setNum,reps:l.r||"",weight:l.w||"",volume:(parseFloat(l.w)||0)*(parseInt(l.r)||0),rpe:"",notes:""});
+  });
+  fetch(ST.sheetsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:rows})})
+    .then(function(){toast("Synced to Google Sheets!");}).catch(function(){toast("Sync failed - saved locally");});
+}
+function syncBWToSheets(entry){if(!ST.sheetsUrl)return;fetch(ST.sheetsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({bodylog:[entry]})}).catch(function(){});}
+
+// The screens above are built as HTML strings with inline onclick="fn()"
+// attributes. Inline handlers execute in the GLOBAL scope, but every
+// function here is declared inside this file's top-level IIFE, so none of
+// them were reachable from onclick -- every button in the app silently
+// no-op'd (ReferenceError: fn is not defined, swallowed by the browser).
+// Root cause confirmed by reproduction in JXA before this fix was written.
+// Exposing exactly the functions referenced by an onclick="..." attribute
+// anywhere in this file (verified via grep) fixes every button at once.
+if (typeof window !== "undefined") {
+  window.startToday = startToday;
+  window.dispatch = dispatch;
+  window.logSet = logSet;
+  window.nextExercise = nextExercise;
+  window.skipRest = skipRest;
+  window.adjustRest = adjustRest;
+  window.finishSession = finishSession;
+  window.goProgress = goProgress;
+  window.goSettings = goSettings;
+  window.goHome = goHome;
+  window.goChat = goChat;
+  window.sendChat = sendChat;
+  window.toggleLiftCard = toggleLiftCard;
+  window.saveApiUrl = saveApiUrl;
+  window.clearApiUrl = clearApiUrl;
+  window.saveSheets = saveSheets;
+  window.clearSheets = clearSheets;
+}
+
+if (typeof document !== "undefined") { render(); }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { save: save, todayName: todayName, dateStr: dateStr, sessKey: sessKey, getST: function(){ return ST; }, WL: WL, DEFAULT_SCHED: DEFAULT_SCHED, DAYS: DAYS, TIPS: TIPS, VIDEOS: VIDEOS, initSessionState: initSessionState, advanceScreen: advanceScreen, epley1RM: epley1RM, sessionSummary: sessionSummary, sessionAggregates: sessionAggregates, buildLiftHistory: buildLiftHistory, typeOf: typeOf, weekKeyOf: weekKeyOf };
+}
+
+})();
+</script>
+</body>
+</html>
